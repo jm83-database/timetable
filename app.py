@@ -37,7 +37,7 @@ def create_app():
             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; "
             "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
             "img-src 'self' data:; "
-            "font-src 'self' https://cdn.jsdelivr.net; "
+            "font-src 'self' data: https://cdn.jsdelivr.net; "
             "connect-src 'self'"
         )
         return response
