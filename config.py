@@ -1,11 +1,16 @@
 import os
+import secrets
 from datetime import timedelta
 
 class Config:
     """애플리케이션 설정"""
 
     # 보안
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'timetable-dashboard-secret-key'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+
+    # 세션 쿠키 보안
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
 
     # 파일 업로드
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'uploads')

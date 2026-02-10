@@ -110,9 +110,23 @@ def get_sheets():
         return jsonify({"success": False, "error": "xlsx 또는 xls 파일만 업로드 가능합니다."}), 400
 
     import uuid as _uuid
-    safe_name = f"{_uuid.uuid4().hex[:8]}_{file.filename}"
+    from werkzeug.utils import secure_filename as _secure
+    original_name = _secure(file.filename) or 'upload.xlsx'
+    safe_name = f"{_uuid.uuid4().hex[:8]}_{original_name}"
     filepath = os.path.join(Config.UPLOAD_FOLDER, safe_name)
     file.save(filepath)
+
+    # 실제 엑셀 파일인지 검증
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(filepath, read_only=True)
+        wb.close()
+    except Exception:
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
+        return jsonify({"success": False, "error": "유효한 엑셀 파일이 아닙니다."}), 400
 
     try:
         sheets = get_sheet_names(filepath)
@@ -121,12 +135,12 @@ def get_sheets():
             return jsonify({"success": False, "error": "유효한 시트를 찾을 수 없습니다."}), 400
         return jsonify({"success": True, "sheets": sheets, "filepath": filepath})
     except Exception as e:
-        logger.error(f"엑셀 파일 읽기 실패: {e}")
+        logger.error(f"엑셀 파일 읽기 실패: {e}", exc_info=True)
         try:
             os.remove(filepath)
         except OSError:
             pass
-        return jsonify({"success": False, "error": f"엑셀 파일 읽기 실패: {str(e)}"}), 400
+        return jsonify({"success": False, "error": "엑셀 파일을 읽을 수 없습니다. 파일 형식을 확인해주세요."}), 400
 
 
 @api_bp.route('/upload', methods=['POST'])
@@ -151,6 +165,13 @@ def upload_course():
     # 입력 검증
     if not filepath or not os.path.exists(filepath):
         return jsonify({"success": False, "error": "업로드된 파일을 찾을 수 없습니다."}), 400
+
+    # Path Traversal 방지: filepath가 UPLOAD_FOLDER 내부인지 검증
+    real_filepath = os.path.realpath(filepath)
+    real_upload_folder = os.path.realpath(Config.UPLOAD_FOLDER)
+    if not real_filepath.startswith(real_upload_folder + os.sep):
+        logger.warning(f"Path Traversal 시도 감지: {filepath}")
+        return jsonify({"success": False, "error": "잘못된 파일 경로입니다."}), 400
     if not selected_sheets:
         return jsonify({"success": False, "error": "시트를 선택해주세요."}), 400
     if not course_name:
@@ -200,8 +221,8 @@ def upload_course():
             "entry_count": len(entries)
         })
     except Exception as e:
-        logger.error(f"파싱 오류: {e}")
-        return jsonify({"success": False, "error": f"파싱 오류: {str(e)}"}), 400
+        logger.error(f"파싱 오류: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "시간표 파싱 중 오류가 발생했습니다. 엑셀 형식을 확인해주세요."}), 400
 
 
 @api_bp.route('/courses/quick', methods=['POST'])

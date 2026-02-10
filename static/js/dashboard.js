@@ -6,6 +6,15 @@ let calendar = null;
 let courses = [];
 let activeCourses = new Set();
 
+// === XSS 방지 유틸리티 ===
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 // === 색상 유틸리티 함수 ===
 
 /**
@@ -268,8 +277,8 @@ async function loadStats() {
             card.className = 'p-3 rounded-lg border border-gray-100 bg-gray-50';
             card.innerHTML = `
                 <div class="flex items-center space-x-2 mb-2">
-                    <div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${stat.color}"></div>
-                    <span class="text-xs font-semibold text-gray-700 truncate">${stat.course_name}</span>
+                    <div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${escapeHtml(stat.color)}"></div>
+                    <span class="text-xs font-semibold text-gray-700 truncate">${escapeHtml(stat.course_name)}</span>
                 </div>
                 <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     <div class="text-gray-500">수업 일수</div>
@@ -282,11 +291,11 @@ async function loadStats() {
                     ` : ''}
                 </div>
                 ${stat.date_range ? `
-                <div class="mt-2 text-xs text-gray-400">${stat.date_range}</div>
+                <div class="mt-2 text-xs text-gray-400">${escapeHtml(stat.date_range)}</div>
                 ` : ''}
                 ${instructorList ? `
                 <div class="mt-1.5 text-xs text-gray-500">
-                    <span class="text-gray-400">강사:</span> ${instructorList}
+                    <span class="text-gray-400">강사:</span> ${escapeHtml(instructorList)}
                 </div>
                 ` : ''}
             `;
@@ -308,7 +317,7 @@ function renderFilters() {
         const btn = document.createElement('button');
         btn.className = 'course-filter-btn active';
         btn.style.backgroundColor = course.color;
-        btn.innerHTML = `<span class="dot" style="background-color: rgba(255,255,255,0.5)"></span>${course.name}`;
+        btn.innerHTML = `<span class="dot" style="background-color: rgba(255,255,255,0.5)"></span>${escapeHtml(course.name)}`;
         btn.dataset.courseId = course.id;
 
         btn.addEventListener('click', () => {
@@ -357,14 +366,14 @@ function renderCourseList() {
         card.className = 'course-card';
         card.innerHTML = `
             <div class="flex items-center space-x-3 min-w-0">
-                <div class="color-dot" style="background-color: ${course.color}"></div>
+                <div class="color-dot" style="background-color: ${escapeHtml(course.color)}"></div>
                 <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-800 truncate">${course.name}</p>
-                    <p class="text-xs text-gray-500">${course.entry_count || 0}개 수업${uploadDate ? ` · ${uploadDate} 등록` : ''}</p>
+                    <p class="text-sm font-medium text-gray-800 truncate">${escapeHtml(course.name)}</p>
+                    <p class="text-xs text-gray-500">${course.entry_count || 0}개 수업${uploadDate ? ` · ${escapeHtml(uploadDate)} 등록` : ''}</p>
                 </div>
             </div>
             <button class="delete-course-btn text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                    data-course-id="${course.id}" data-course-name="${course.name}"
+                    data-course-id="${escapeHtml(course.id)}" data-course-name="${escapeHtml(course.name)}"
                     title="과정 삭제">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

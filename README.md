@@ -250,7 +250,7 @@ Vertex42 캘린더 템플릿 기반으로 다음 구조를 인식합니다:
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| `SECRET_KEY` | `timetable-dashboard-secret-key` | Flask 시크릿 키 |
+| `SECRET_KEY` | (랜덤 자동 생성) | Flask 시크릿 키 |
 | `FLASK_ENV` | - | `development` 설정 시 디버그 모드 |
 | `PORT` | `5000` | 서버 포트 |
 | `COSMOS_DB_ENDPOINT` | - | Azure Cosmos DB 엔드포인트 (선택) |
@@ -323,3 +323,24 @@ GitHub Push → GitHub Actions → Azure Web App (Gunicorn) → Cosmos DB
 ```
 
 `app.py`의 `app = create_app()` 전역 인스턴스가 Gunicorn과 Azure Web App에 호환됩니다.
+
+## 보안
+
+### 적용된 보안 조치
+
+| 항목 | 설명 |
+|------|------|
+| **Path Traversal 차단** | 파일 업로드 경로가 업로드 폴더 내부인지 `os.path.realpath`로 검증 |
+| **XSS 방지** | 클라이언트에서 서버 데이터를 `innerHTML`에 삽입 시 `escapeHtml()` 적용 |
+| **보안 헤더** | `X-Content-Type-Options`, `X-Frame-Options`, `CSP`, `Referrer-Policy` 등 설정 |
+| **에러 메시지 보호** | 내부 시스템 경로·스택 트레이스가 API 응답에 노출되지 않음 |
+| **SECRET_KEY** | 환경변수 미설정 시 `secrets.token_hex(32)`로 랜덤 생성 |
+| **세션 쿠키** | `HttpOnly=True`, `SameSite=Lax` 설정 |
+| **파일 업로드 검증** | 확장자 검사 + `openpyxl`로 실제 엑셀 파일 여부 이중 검증 |
+| **파일명 보안** | `werkzeug.utils.secure_filename`으로 안전한 파일명 변환 |
+
+### 주의사항
+
+- `.env` 파일은 `.gitignore`에 포함되어 있으므로 GitHub에 커밋되지 않습니다.
+- 프로덕션 배포 시 Azure Portal의 **애플리케이션 설정**에서 `SECRET_KEY`를 별도로 설정하세요.
+- Cosmos DB 키는 환경변수로만 관리하고 코드에 하드코딩하지 마세요.
