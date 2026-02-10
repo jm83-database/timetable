@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+
+# Environment
+.env
+
+# Data
+data/uploads/
+data/courses.json
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 엑셀 원본 파일
+*.xlsx
+
+# 테스트/임시 파일
+test_output.json
+nul
+server.log
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

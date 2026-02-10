@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}대시보드 - Timetable Dashboard{% endblock %}
+
+{% block content %}
+<!-- 과정 필터 바 -->
+<div id="filter-bar" class="mb-4">
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-sm font-medium text-gray-600">과정 필터:</span>
+            <div id="course-filters" class="flex flex-wrap gap-2">
+                <!-- JS로 동적 생성 -->
+            </div>
+            <div id="no-courses" class="hidden text-sm text-gray-400">
+                등록된 과정이 없습니다.
+                <a href="/upload" class="text-primary hover:underline">시간표를 업로드</a>해주세요.
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                <button onclick="openAddModal()"
+                        class="px-3 py-1.5 text-xs font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors"
+                        title="수업 추가">
+                    + 수업 추가
+                </button>
+                <button onclick="openHelpModal()"
+                        class="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-primary hover:bg-blue-50 transition-colors"
+                        title="도움말">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 메인 레이아웃: 캘린더 + 사이드바 -->
+<div class="flex flex-col lg:flex-row gap-4">
+    <!-- 캘린더 영역 -->
+    <div class="flex-1 min-w-0">
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <div id="calendar-loading" class="flex items-center justify-center py-16">
+                <div class="flex flex-col items-center space-y-3">
+                    <svg class="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-sm text-gray-500">캘린더 로딩 중...</span>
+                </div>
+            </div>
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- 사이드바 -->
+    <div class="lg:w-80 flex-shrink-0">
+        <!-- 통계 카드 -->
+        <div id="stats-section" class="hidden bg-white rounded-lg shadow-sm p-4 border border-gray-200 mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <svg class="w-4 h-4 mr-1.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                과정 통계
+            </h3>
+            <div id="stats-content" class="space-y-3">
+                <!-- JS로 동적 생성 -->
+            </div>
+        </div>
+
+        <!-- 등록된 과정 목록 -->
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <svg class="w-4 h-4 mr-1.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                등록된 과정
+            </h3>
+            <div id="course-list" class="space-y-2">
+                <!-- JS로 동적 생성 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 이벤트 상세 모달 -->
+<div id="event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+     data-course-id="" data-entry-id="">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div id="modal-header" class="px-6 py-4">
+            <div class="flex justify-between items-start">
+                <h3 id="modal-title" class="text-lg font-bold text-white pr-4"></h3>
+                <button onclick="closeModal()" class="text-white hover:text-gray-200 transition-colors flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+            <div class="flex items-center space-x-3">
+                <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <div>
+                    <span class="text-xs text-gray-500">강사</span>
+                    <p id="modal-instructor" class="text-sm font-medium text-gray-800"></p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <span class="text-xs text-gray-500">시간</span>
+                    <p id="modal-time" class="text-sm font-medium text-gray-800"></p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                <div>
+                    <span class="text-xs text-gray-500">과정</span>
+                    <p id="modal-course" class="text-sm font-medium text-gray-800"></p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <div>
+                    <span class="text-xs text-gray-500">날짜</span>
+                    <p id="modal-date" class="text-sm font-medium text-gray-800"></p>
+                </div>
+            </div>
+        </div>
+        <div id="modal-actions" class="px-6 py-3 bg-gray-50 flex justify-end">
+            <button id="modal-delete-btn" onclick="deleteEventFromModal()"
+                    class="hidden px-3 py-1.5 text-xs font-medium text-red-600 hover:text-white hover:bg-red-500 border border-red-300 rounded-lg transition-colors">
+                수업 삭제
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 수업 추가 모달 -->
+<div id="add-event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="px-6 py-4 bg-primary">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white">수업 일정 추가</h3>
+                <button onclick="closeAddModal()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">과정 선택 <span class="text-red-500">*</span></label>
+                <select id="add-course-select"
+                        onchange="onCourseSelectChange()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+                    <option value="">과정을 선택하세요</option>
+                </select>
+            </div>
+            <!-- 새 과정 입력 (숨김) -->
+            <div id="new-course-fields" class="hidden space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">새 과정명 <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-new-course-name" maxlength="50"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                           placeholder="예: AI기초과정">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">과정 색상</label>
+                    <div id="add-new-course-colors" class="flex flex-wrap gap-2">
+                        <!-- JS로 색상 프리셋 생성 -->
+                    </div>
+                    <input type="hidden" id="add-new-course-color" value="#4A90D9">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">날짜 <span class="text-red-500">*</span></label>
+                <input type="date" id="add-date"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">수업명 <span class="text-red-500">*</span></label>
+                <input type="text" id="add-class-name" maxlength="100"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                       placeholder="예: AI기본의 이해 및 활용">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">강사</label>
+                <input type="text" id="add-instructor" maxlength="50"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                       placeholder="예: 강명호">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">수업시간</label>
+                    <input type="number" id="add-hours" value="8" min="1" max="12"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">시작 시각</label>
+                    <input type="time" id="add-start-time" value="09:00"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="add-is-holiday" class="accent-primary w-4 h-4">
+                <label for="add-is-holiday" class="text-sm text-gray-700">공휴일 / 휴일</label>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-2">
+            <button onclick="closeAddModal()"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
+                취소
+            </button>
+            <button onclick="submitAddEntry()"
+                    class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                추가
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 도움말 모달 -->
+<div id="help-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="px-6 py-4 bg-primary flex-shrink-0">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white">사용 가이드</h3>
+                <button onclick="closeHelpModal()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto space-y-5 help-scroll">
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">1</span>
+                    엑셀 시간표 업로드
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    상단의 <strong>+ 시간표 업로드</strong> 버튼을 클릭하여 엑셀 파일(.xlsx)을 업로드합니다.
+                    업로드 후 원하는 월(시트)을 선택하고, 과정명과 색상을 설정한 뒤 가져오기를 실행합니다.
+                </p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">2</span>
+                    수업 일정 추가
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    캘린더에서 원하는 <strong>날짜를 클릭</strong>하거나 상단의 <strong>+ 수업 추가</strong> 버튼을 눌러
+                    개별 수업을 추가할 수 있습니다. 과정, 수업명, 강사, 수업시간 등을 입력합니다.
+                </p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">3</span>
+                    캘린더 탐색
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    <strong>월간/주간</strong> 보기를 전환할 수 있으며, 좌우 화살표로 이전/다음 월로 이동합니다.
+                    <strong>오늘</strong> 버튼으로 현재 날짜로 돌아옵니다.
+                </p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">4</span>
+                    수업 확인 및 삭제
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    캘린더의 수업을 클릭하면 상세 정보(강사, 시간, 과정)를 확인할 수 있습니다.
+                    상세 팝업 하단의 <strong>수업 삭제</strong> 버튼으로 개별 수업을 삭제할 수 있습니다.
+                </p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">5</span>
+                    과정 필터 및 관리
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    상단의 과정 필터 버튼을 클릭하여 특정 과정의 일정만 표시하거나 숨길 수 있습니다.
+                    오른쪽 사이드바에서 과정별 통계를 확인하고, 과정 전체를 삭제할 수 있습니다.
+                </p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">6</span>
+                    색상 구분
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    수업시간에 따라 색상이 자동으로 조정됩니다.
+                    8시간 기준으로 적으면 <strong>연한 색</strong>, 많으면 <strong>진한 색</strong>으로 표시됩니다.
+                    회색 배경의 빨간 텍스트 이벤트는 공휴일/휴일을 나타냅니다.
+                </p>
+            </div>
+        </div>
+        <div class="px-6 py-3 bg-gray-50 flex-shrink-0 text-right">
+            <button onclick="closeHelpModal()"
+                    class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                확인
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
