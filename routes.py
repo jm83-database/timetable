@@ -148,6 +148,7 @@ def upload_course():
     """엑셀 파싱 후 과정 저장"""
     from services.excel_parser import parse_timetable
     from services.cosmos_service import get_storage
+    from config import Config
     import os
     import uuid
     from datetime import datetime
