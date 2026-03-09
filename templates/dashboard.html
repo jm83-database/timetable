@@ -10,6 +10,20 @@
             <div id="course-filters" class="flex flex-wrap gap-2">
                 <!-- JS로 동적 생성 -->
             </div>
+            <!-- 필터 제어 버튼 (과정이 2개 이상일 때만 표시) -->
+            <div id="filter-controls" class="hidden flex items-center gap-1">
+                <button onclick="clearAllFilters()"
+                        class="filter-ctrl-btn text-gray-400 hover:text-red-500"
+                        title="모든 과정 숨기기 (Ctrl+클릭으로 단독 보기 가능)">
+                    전체 해제
+                </button>
+                <span class="text-gray-300 text-xs select-none">|</span>
+                <button onclick="selectAllFilters()"
+                        class="filter-ctrl-btn text-gray-400 hover:text-blue-500"
+                        title="모든 과정 표시">
+                    전체 선택
+                </button>
+            </div>
             <div id="no-courses" class="hidden text-sm text-gray-400">
                 등록된 과정이 없습니다.
                 <a href="/upload" class="text-primary hover:underline">시간표를 업로드</a>해주세요.
@@ -296,6 +310,11 @@
                     상단의 과정 필터 버튼을 클릭하여 특정 과정의 일정만 표시하거나 숨길 수 있습니다.
                     오른쪽 사이드바에서 과정별 통계를 확인하고, 과정 전체를 삭제할 수 있습니다.
                 </p>
+                <ul class="mt-2 space-y-1 text-sm text-gray-600">
+                    <li>· <strong>전체 해제</strong> — 모든 과정을 한 번에 숨깁니다</li>
+                    <li>· <strong>전체 선택</strong> — 모든 과정을 한 번에 표시합니다</li>
+                    <li>· <strong>Ctrl+클릭</strong> — 해당 과정만 단독으로 표시합니다 (1클릭 단독 보기)</li>
+                </ul>
             </div>
             <div>
                 <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
