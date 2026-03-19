@@ -309,9 +309,47 @@ async function loadStats() {
     }
 }
 
+function updateAllFilterBtnStates() {
+    document.querySelectorAll('.course-filter-btn').forEach(btn => {
+        const course = courses.find(c => c.id === btn.dataset.courseId);
+        if (!course) return;
+        if (activeCourses.has(course.id)) {
+            btn.className = 'course-filter-btn active';
+            btn.style.backgroundColor = course.color;
+            btn.querySelector('.dot').style.backgroundColor = 'rgba(255,255,255,0.5)';
+        } else {
+            btn.className = 'course-filter-btn inactive';
+            btn.style.backgroundColor = '';
+            btn.querySelector('.dot').style.backgroundColor = course.color;
+        }
+    });
+}
+
+function clearAllFilters() {
+    activeCourses.clear();
+    updateAllFilterBtnStates();
+    calendar.refetchEvents();
+}
+
+function selectAllFilters() {
+    courses.forEach(c => activeCourses.add(c.id));
+    updateAllFilterBtnStates();
+    calendar.refetchEvents();
+}
+
 function renderFilters() {
     const container = document.getElementById('course-filters');
     container.innerHTML = '';
+
+    // 과정이 2개 이상일 때만 전체 제어 버튼 표시
+    const filterControls = document.getElementById('filter-controls');
+    if (filterControls) {
+        if (courses.length >= 2) {
+            filterControls.classList.remove('hidden');
+        } else {
+            filterControls.classList.add('hidden');
+        }
+    }
 
     courses.forEach(course => {
         const btn = document.createElement('button');
@@ -320,7 +358,16 @@ function renderFilters() {
         btn.innerHTML = `<span class="dot" style="background-color: rgba(255,255,255,0.5)"></span>${escapeHtml(course.name)}`;
         btn.dataset.courseId = course.id;
 
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            // Ctrl+클릭(또는 Mac Cmd+클릭): 해당 과정만 단독으로 표시
+            if (e.ctrlKey || e.metaKey) {
+                activeCourses.clear();
+                activeCourses.add(course.id);
+                updateAllFilterBtnStates();
+                calendar.refetchEvents();
+                return;
+            }
+            // 일반 클릭: 토글
             if (activeCourses.has(course.id)) {
                 activeCourses.delete(course.id);
                 btn.className = 'course-filter-btn inactive';
