@@ -35,7 +35,7 @@
 }
 
 .fc .fc-daygrid-day-frame {
-    min-height: 160px;
+    min-height: 200px;
 }
 
 .fc .fc-daygrid-event {
@@ -54,9 +54,9 @@
 
 .fc .fc-event-title {
     font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .fc .fc-day-today {

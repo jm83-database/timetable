@@ -139,9 +139,9 @@ function initCalendar() {
             month: '월간',
             week: '주간',
         },
-        firstDay: 1, // 월요일 시작
+        firstDay: 0, // 일요일 시작
         height: 'auto',
-        dayMaxEvents: 6,
+        dayMaxEvents: 8,
         moreLinkText: '+{0}개',
         displayEventTime: false, // 월간 뷰에서 시간 텍스트 숨김 (타이틀에 강사명 포함)
         dateClick: (info) => {
