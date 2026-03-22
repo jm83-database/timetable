@@ -165,7 +165,6 @@ function initCalendar() {
                 const baseColor = info.event.backgroundColor;
                 const adjusted = adjustColorForHours(baseColor, hours);
                 info.el.style.backgroundColor = adjusted.bg;
-                info.el.style.borderColor = adjusted.bg;
                 info.el.style.color = adjusted.text;
                 const titleEl = info.el.querySelector('.fc-event-title');
                 if (titleEl) titleEl.style.color = adjusted.text;

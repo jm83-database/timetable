@@ -42,7 +42,7 @@
     border-radius: 4px;
     padding: 3px 6px;
     font-size: 0.8rem;
-    border: none;
+    border: 1.5px solid rgba(0, 0, 0, 0.18) !important;
     cursor: pointer;
     transition: transform 0.1s, box-shadow 0.1s;
 }
