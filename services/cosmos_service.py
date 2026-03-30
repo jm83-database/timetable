@@ -145,6 +145,22 @@ class LocalJsonStorage:
                     return True
         return False
 
+    def update_entry(self, course_id, entry_id, updates):
+        """개별 수업 일정 수정"""
+        data = self._load_data()
+        for course in data['courses']:
+            if course.get('id') == course_id:
+                for entry in course.get('entries', []):
+                    if entry.get('id') == entry_id:
+                        for key in ['date', 'class_name', 'instructor', 'hours',
+                                    'start_time', 'end_time', 'is_holiday']:
+                            if key in updates:
+                                entry[key] = updates[key]
+                        self._save_data(data)
+                        logger.info(f"수업 일정 수정: {course_id} / {entry_id}")
+                        return True
+        return False
+
 
 class CosmosStorage:
     """Azure Cosmos DB 기반 저장소"""
@@ -308,4 +324,32 @@ class CosmosStorage:
             return True
         except Exception as e:
             logger.error(f"엔트리 삭제 실패: {e}")
+            return False
+
+    def update_entry(self, course_id, entry_id, updates):
+        """개별 수업 일정 수정"""
+        try:
+            entry_query = "SELECT * FROM c WHERE c.type = 'entry' AND c.id = @entry_id AND c.course_id = @course_id"
+            entry_docs = list(self.container.query_items(
+                query=entry_query,
+                parameters=[
+                    {"name": "@entry_id", "value": entry_id},
+                    {"name": "@course_id", "value": course_id},
+                ],
+                enable_cross_partition_query=True
+            ))
+            if not entry_docs:
+                return False
+
+            entry_doc = entry_docs[0]
+            for key in ['date', 'class_name', 'instructor', 'hours',
+                        'start_time', 'end_time', 'is_holiday']:
+                if key in updates:
+                    entry_doc[key] = updates[key]
+
+            self.container.replace_item(item=entry_doc['id'], body=entry_doc)
+            logger.info(f"수업 일정 수정: {course_id} / {entry_id}")
+            return True
+        except Exception as e:
+            logger.error(f"엔트리 수정 실패: {e}")
             return False

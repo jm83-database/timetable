@@ -388,3 +388,51 @@ def delete_entry(course_id, entry_id):
         logger.info(f"수업 일정 삭제: {course_id} / {entry_id}")
         return jsonify({"success": True, "message": "수업 일정이 삭제되었습니다."})
     return jsonify({"success": False, "error": "수업 일정을 찾을 수 없습니다."}), 404
+
+
+@api_bp.route('/courses/<course_id>/entries/<entry_id>', methods=['PUT'])
+def update_entry(course_id, entry_id):
+    """개별 수업 일정 수정"""
+    from services.cosmos_service import get_storage
+    from services.excel_parser import calculate_end_time
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "error": "요청 데이터가 없습니다."}), 400
+
+    date = data.get('date', '').strip()
+    class_name = _sanitize_name(data.get('class_name', ''), max_len=100)
+
+    if not date or not DATE_RE.match(date):
+        return jsonify({"success": False, "error": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"}), 400
+    if not class_name:
+        return jsonify({"success": False, "error": "수업명을 입력해주세요."}), 400
+
+    instructor = _sanitize_name(data.get('instructor', ''), max_len=50)
+    hours = data.get('hours', 8)
+    start_time = data.get('start_time', '09:00')
+    is_holiday = bool(data.get('is_holiday', False))
+
+    if not isinstance(hours, int) or hours < 1 or hours > 12:
+        return jsonify({"success": False, "error": "수업시간은 1~12시간 사이로 입력해주세요."}), 400
+    if not _validate_time(start_time):
+        start_time = '09:00'
+
+    end_time = calculate_end_time(start_time, hours)
+
+    updates = {
+        "date": date,
+        "class_name": class_name,
+        "instructor": instructor,
+        "hours": hours,
+        "start_time": start_time,
+        "end_time": end_time,
+        "is_holiday": is_holiday,
+    }
+
+    storage = get_storage()
+    success = storage.update_entry(course_id, entry_id, updates)
+    if success:
+        logger.info(f"수업 일정 수정: {course_id} / {entry_id} ({class_name})")
+        return jsonify({"success": True, "message": f"'{class_name}' 수업이 수정되었습니다."})
+    return jsonify({"success": False, "error": "수업 일정을 찾을 수 없습니다."}), 404

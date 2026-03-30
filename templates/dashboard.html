@@ -153,7 +153,11 @@
                 </div>
             </div>
         </div>
-        <div id="modal-actions" class="px-6 py-3 bg-gray-50 flex justify-end">
+        <div id="modal-actions" class="px-6 py-3 bg-gray-50 flex justify-end space-x-2">
+            <button id="modal-edit-btn" onclick="openEditModal()"
+                    class="hidden px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-white hover:bg-blue-500 border border-blue-300 rounded-lg transition-colors">
+                수업 수정
+            </button>
             <button id="modal-delete-btn" onclick="deleteEventFromModal()"
                     class="hidden px-3 py-1.5 text-xs font-medium text-red-600 hover:text-white hover:bg-red-500 border border-red-300 rounded-lg transition-colors">
                 수업 삭제
@@ -247,6 +251,67 @@
     </div>
 </div>
 
+<!-- 수업 수정 모달 -->
+<div id="edit-event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="px-6 py-4 bg-blue-500">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white">수업 일정 수정</h3>
+                <button onclick="closeEditModal()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">날짜 <span class="text-red-500">*</span></label>
+                <input type="date" id="edit-date"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">수업명 <span class="text-red-500">*</span></label>
+                <input type="text" id="edit-class-name" maxlength="100"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
+                       placeholder="예: AI기본의 이해 및 활용">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">강사</label>
+                <input type="text" id="edit-instructor" maxlength="50"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
+                       placeholder="예: 강명호">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">수업시간</label>
+                    <input type="number" id="edit-hours" value="8" min="1" max="12"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">시작 시각</label>
+                    <input type="time" id="edit-start-time" value="09:00"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="edit-is-holiday" class="accent-blue-500 w-4 h-4">
+                <label for="edit-is-holiday" class="text-sm text-gray-700">공휴일 / 휴일</label>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-2">
+            <button onclick="closeEditModal()"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
+                취소
+            </button>
+            <button onclick="submitEditEntry()"
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                수정 완료
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- 도움말 모달 -->
 <div id="help-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
     <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
@@ -294,11 +359,12 @@
             <div>
                 <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
                     <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">4</span>
-                    수업 확인 및 삭제
+                    수업 확인, 수정 및 삭제
                 </h4>
                 <p class="text-sm text-gray-600 leading-relaxed">
                     캘린더의 수업을 클릭하면 상세 정보(강사, 시간, 과정)를 확인할 수 있습니다.
-                    상세 팝업 하단의 <strong>수업 삭제</strong> 버튼으로 개별 수업을 삭제할 수 있습니다.
+                    <strong>수업 수정</strong> 버튼으로 수업명·강사·날짜·시간 등을 수정하거나,
+                    <strong>수업 삭제</strong> 버튼으로 개별 수업을 삭제할 수 있습니다.
                 </p>
             </div>
             <div>

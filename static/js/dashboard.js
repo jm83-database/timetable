@@ -5,6 +5,7 @@
 let calendar = null;
 let courses = [];
 let activeCourses = new Set();
+let currentEvent = null;
 
 // === XSS 방지 유틸리티 ===
 
@@ -462,14 +463,22 @@ function showEventModal(event) {
     const modal = document.getElementById('event-modal');
     const props = event.extendedProps;
     const deleteBtn = document.getElementById('modal-delete-btn');
+    const editBtn = document.getElementById('modal-edit-btn');
 
-    // 삭제용 ID 저장
+    // 현재 이벤트 저장 (수정 모달에서 사용)
+    currentEvent = event;
+
+    // 삭제/수정용 ID 저장
     modal.dataset.courseId = props.course_id || '';
     modal.dataset.entryId = props.entry_id || '';
 
     // 삭제 버튼 표시/숨김 (entry_id가 있을 때만 삭제 가능)
     if (deleteBtn) {
         deleteBtn.classList.toggle('hidden', !props.entry_id);
+    }
+    // 수정 버튼 표시/숨김 (entry_id 있고 공휴일이 아닐 때만)
+    if (editBtn) {
+        editBtn.classList.toggle('hidden', !props.entry_id || props.is_holiday);
     }
 
     // 공휴일인 경우
@@ -517,6 +526,9 @@ document.getElementById('event-modal').addEventListener('click', (e) => {
 document.getElementById('add-event-modal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeAddModal();
 });
+document.getElementById('edit-event-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeEditModal();
+});
 document.getElementById('help-modal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeHelpModal();
 });
@@ -526,6 +538,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeModal();
         closeAddModal();
+        closeEditModal();
         closeHelpModal();
     }
 });
@@ -736,6 +749,81 @@ async function deleteEventFromModal() {
         }
     } catch (err) {
         showToast('삭제 중 오류가 발생했습니다.', 'error');
+    }
+}
+
+// === 수업 수정 모달 ===
+
+function openEditModal() {
+    if (!currentEvent) return;
+    const props = currentEvent.extendedProps;
+
+    // 날짜 추출 (YYYY-MM-DD)
+    const d = currentEvent.start;
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    // 시작 시각 추출 (HH:MM)
+    const startTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+    // 필드 pre-fill
+    document.getElementById('edit-date').value = dateStr;
+    document.getElementById('edit-class-name').value = currentEvent.title || '';
+    document.getElementById('edit-instructor').value = (props.instructor || '').replace(/,/g, ', ');
+    document.getElementById('edit-hours').value = props.hours || 8;
+    document.getElementById('edit-start-time').value = startTime || '09:00';
+    document.getElementById('edit-is-holiday').checked = props.is_holiday || false;
+
+    closeModal();
+    document.getElementById('edit-event-modal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-event-modal').classList.add('hidden');
+}
+
+async function submitEditEntry() {
+    const modal = document.getElementById('event-modal');
+    const courseId = modal.dataset.courseId;
+    const entryId = modal.dataset.entryId;
+
+    if (!courseId || !entryId) {
+        showToast('수정할 수 없는 일정입니다.', 'error');
+        return;
+    }
+
+    const date = document.getElementById('edit-date').value;
+    const className = document.getElementById('edit-class-name').value.trim();
+    const instructor = document.getElementById('edit-instructor').value.trim();
+    const hours = parseInt(document.getElementById('edit-hours').value) || 8;
+    const startTime = document.getElementById('edit-start-time').value || '09:00';
+    const isHoliday = document.getElementById('edit-is-holiday').checked;
+
+    if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
+    if (!className) { showToast('수업명을 입력해주세요.', 'error'); return; }
+
+    try {
+        const res = await fetch(`/api/courses/${courseId}/entries/${entryId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                date,
+                class_name: className,
+                instructor,
+                hours,
+                start_time: startTime,
+                is_holiday: isHoliday,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeEditModal();
+            calendar.refetchEvents();
+        } else {
+            showToast(data.error || '수정에 실패했습니다.', 'error');
+        }
+    } catch (err) {
+        showToast('수업 수정 중 오류가 발생했습니다.', 'error');
     }
 }
 
