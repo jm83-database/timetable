@@ -765,6 +765,11 @@ function openEditModal() {
     // 시작 시각 추출 (HH:MM)
     const startTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+    // 과정 색상 적용 (헤더 + 완료 버튼)
+    const courseColor = currentEvent.backgroundColor || '#4A90D9';
+    document.getElementById('edit-modal-header').style.backgroundColor = courseColor;
+    document.getElementById('edit-submit-btn').style.backgroundColor = courseColor;
+
     // 필드 pre-fill
     document.getElementById('edit-date').value = dateStr;
     document.getElementById('edit-class-name').value = currentEvent.title || '';
