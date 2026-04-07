@@ -853,13 +853,14 @@ function openDatePickerModal() {
     datePickerState.year = currentDate.getFullYear();
     datePickerState.month = currentDate.getMonth();
     datePickerState.selectedDate = new Date(currentDate);
-    datePickerState.mode = 'month'; // 항상 월 선택으로 시작
+    datePickerState.yearStartRange = Math.floor(datePickerState.year / 10) * 10;
+    datePickerState.mode = 'year'; // 항상 연도 선택으로 시작
 
     // 월/년 뷰 보이기
-    document.getElementById('picker-month-view').classList.remove('hidden');
-    document.getElementById('picker-year-view').classList.add('hidden');
+    document.getElementById('picker-month-view').classList.add('hidden');
+    document.getElementById('picker-year-view').classList.remove('hidden');
 
-    renderDatePickerCalendar();
+    renderYearPickerGrid();
     const modal = document.getElementById('date-picker-modal');
     modal.classList.remove('hidden');
 
@@ -869,9 +870,9 @@ function openDatePickerModal() {
     // 배경 스크롤 비활성화
     document.body.style.overflow = 'hidden';
 
-    // 포커스 관리: 모달이 열리면 포커스를 첫 번째 버튼으로 이동
+    // 포커스 관리: 모달이 열리면 포커스를 첫 번째 연도 버튼으로 이동
     setTimeout(() => {
-        const firstButton = modal.querySelector('button[aria-label="이전 달"]');
+        const firstButton = modal.querySelector('button[aria-label*="년"]');
         if (firstButton) firstButton.focus();
     }, 50);
 }
@@ -988,8 +989,10 @@ function datePickerToday() {
 }
 
 function datePickerConfirm() {
-    if (calendar) {
-        calendar.gotoDate(datePickerState.selectedDate);
+    // 선택된 연/월로 이동 (month view에서만 호출됨)
+    if (calendar && datePickerState.mode === 'month') {
+        const newDate = new Date(datePickerState.year, datePickerState.month, 1);
+        calendar.gotoDate(newDate);
     }
     closeDatePickerModal();
 }
@@ -1028,7 +1031,7 @@ function switchToMonthPicker() {
     document.getElementById('picker-month-view').classList.remove('hidden');
     document.getElementById('picker-year-view').classList.add('hidden');
 
-    renderDatePickerCalendar();
+    renderMonthPickerGrid();
 }
 
 function renderYearPickerGrid() {
@@ -1079,6 +1082,60 @@ function selectYear(year) {
     switchToMonthPicker();
 }
 
+function renderMonthPickerGrid() {
+    const grid = document.getElementById('picker-month-grid');
+    const title = document.getElementById('picker-current-year');
+
+    // 제목 업데이트 (선택된 연도)
+    title.textContent = `${datePickerState.year}년`;
+
+    // 그리드 초기화
+    grid.innerHTML = '';
+
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // 12개 월 생성 (3x4 그리드)
+    const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+    for (let i = 0; i < 12; i++) {
+        const isSelected = i === datePickerState.month;
+        const isToday = i === currentMonth && datePickerState.year === currentYear;
+
+        const cell = createMonthPickerCell(i, months[i], { selected: isSelected, today: isToday });
+        cell.onclick = () => selectMonth(i);
+        grid.appendChild(cell);
+    }
+}
+
+function createMonthPickerCell(monthIndex, monthName, flags = {}) {
+    const cell = document.createElement('button');
+    cell.className = 'month-picker-cell';
+    cell.textContent = monthName;
+    cell.type = 'button';
+
+    // 접근성
+    cell.setAttribute('aria-label', `${datePickerState.year}년 ${monthName}${flags.selected ? ' 선택됨' : ''}${flags.today ? ' 이번 달' : ''}`);
+
+    if (flags.today) {
+        cell.classList.add('today');
+        cell.setAttribute('aria-current', 'date');
+    }
+    if (flags.selected) cell.classList.add('selected');
+
+    return cell;
+}
+
+function selectMonth(month) {
+    datePickerState.month = month;
+    // 캘린더를 해당 연/월로 이동 후 모달 닫기
+    if (calendar) {
+        const newDate = new Date(datePickerState.year, datePickerState.month, 1);
+        calendar.gotoDate(newDate);
+    }
+    closeDatePickerModal();
+}
+
 function datePickerPrevYearRange() {
     datePickerState.yearStartRange -= 10;
     renderYearPickerGrid();
@@ -1106,26 +1163,20 @@ document.addEventListener('keydown', (e) => {
     if (modal.classList.contains('hidden')) return;
 
     if (e.key === 'Escape') {
-        // 연도 선택 모드에서는 월 선택으로 돌아가기, 아니면 모달 닫기
-        if (datePickerState.mode === 'year') {
-            switchToMonthPicker();
+        // 월 선택 모드에서는 연도 선택으로 돌아가기, 아니면 모달 닫기
+        if (datePickerState.mode === 'month') {
+            switchToYearPicker();
         } else {
             closeDatePickerModal();
         }
-    } else if (e.key === 'Enter' && datePickerState.mode === 'month') {
-        datePickerConfirm();
     } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        if (datePickerState.mode === 'month') {
-            datePickerPrevMonth();
-        } else if (datePickerState.mode === 'year') {
+        if (datePickerState.mode === 'year') {
             datePickerPrevYearRange();
         }
     } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        if (datePickerState.mode === 'month') {
-            datePickerNextMonth();
-        } else if (datePickerState.mode === 'year') {
+        if (datePickerState.mode === 'year') {
             datePickerNextYearRange();
         }
     } else if (e.key === 'Tab') {

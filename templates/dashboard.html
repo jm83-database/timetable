@@ -326,62 +326,19 @@
         </div>
 
         <!-- 바디 -->
-        <div class="px-6 py-4 space-y-4">
-            <!-- 월/년 선택 - 월 선택 화면 -->
-            <div id="picker-month-view" class="space-y-4">
-                <!-- 년/월 네비게이션 -->
-                <div class="flex items-center justify-between">
-                    <button onclick="datePickerPrevMonth()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="이전 달">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                        </svg>
-                    </button>
-                    <button id="picker-title" onclick="switchToYearPicker()" class="text-lg font-semibold text-gray-800 min-w-max hover:text-primary cursor-pointer px-2 py-1 rounded transition-colors" aria-live="polite"></button>
-                    <button onclick="datePickerNextMonth()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="다음 달">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </button>
-                </div>
+        <div class="px-6 py-4 min-h-[300px] flex flex-col">
+            <!-- 연도 선택 화면 -->
+            <div id="picker-year-view" class="space-y-4 flex-1 flex flex-col">
+                <p class="text-sm text-gray-600 text-center mb-2">연도를 선택하세요</p>
 
-            <!-- 요일 헤더 -->
-            <div class="grid grid-cols-7 gap-1">
-                <div class="text-center text-xs font-bold text-gray-500 py-2">일</div>
-                <div class="text-center text-xs font-bold text-gray-500 py-2">월</div>
-                <div class="text-center text-xs font-bold text-gray-500 py-2">화</div>
-                <div class="text-center text-xs font-bold text-gray-500 py-2">수</div>
-                <div class="text-center text-xs font-bold text-gray-500 py-2">목</div>
-                <div class="text-center text-xs font-bold text-gray-500 py-2">금</div>
-                <div class="text-center text-xs font-bold text-gray-500 py-2">토</div>
-            </div>
-
-                <!-- 요일 헤더 -->
-                <div class="grid grid-cols-7 gap-1">
-                    <div class="text-center text-xs font-bold text-gray-500 py-2">일</div>
-                    <div class="text-center text-xs font-bold text-gray-500 py-2">월</div>
-                    <div class="text-center text-xs font-bold text-gray-500 py-2">화</div>
-                    <div class="text-center text-xs font-bold text-gray-500 py-2">수</div>
-                    <div class="text-center text-xs font-bold text-gray-500 py-2">목</div>
-                    <div class="text-center text-xs font-bold text-gray-500 py-2">금</div>
-                    <div class="text-center text-xs font-bold text-gray-500 py-2">토</div>
-                </div>
-
-                <!-- 날짜 그리드 -->
-                <div id="picker-calendar-grid" class="grid grid-cols-7 gap-1" role="grid" aria-label="달력">
-                    <!-- JS로 동적 생성 -->
-                </div>
-            </div>
-
-            <!-- 연도 선택 - 년도 선택 화면 -->
-            <div id="picker-year-view" class="hidden space-y-4">
                 <!-- 연도 범위 네비게이션 -->
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-3">
                     <button onclick="datePickerPrevYearRange()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="이전 10년">
                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </button>
-                    <h4 id="picker-year-range" class="text-lg font-semibold text-gray-800 min-w-max" aria-live="polite"></h4>
+                    <h4 id="picker-year-range" class="text-base font-semibold text-gray-800" aria-live="polite"></h4>
                     <button onclick="datePickerNextYearRange()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="다음 10년">
                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -394,19 +351,33 @@
                     <!-- JS로 동적 생성 -->
                 </div>
             </div>
+
+            <!-- 월 선택 화면 -->
+            <div id="picker-month-view" class="hidden space-y-4 flex-1 flex flex-col">
+                <!-- 연도 표시 & 변경 -->
+                <div class="flex items-center justify-between mb-2">
+                    <button onclick="switchToYearPicker()" class="text-sm text-primary hover:text-blue-600 font-medium transition-colors" aria-label="연도 변경">
+                        ◀ 연도 변경
+                    </button>
+                    <h4 id="picker-current-year" class="text-base font-semibold text-gray-800" aria-live="polite"></h4>
+                </div>
+
+                <p class="text-sm text-gray-600 text-center mb-3">월을 선택하세요</p>
+
+                <!-- 월 그리드 (3x4 = 12개) -->
+                <div id="picker-month-grid" class="grid grid-cols-4 gap-2" role="grid" aria-label="월 선택">
+                    <!-- JS로 동적 생성 -->
+                </div>
+            </div>
         </div>
 
         <!-- 푸터 -->
         <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-2">
-            <button onclick="datePickerToday()"
-                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-                오늘
-            </button>
             <button onclick="closeDatePickerModal()"
                     class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
                 취소
             </button>
-            <button onclick="datePickerConfirm()"
+            <button id="picker-confirm-btn" onclick="datePickerConfirm()"
                     class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
                 선택
             </button>
@@ -461,9 +432,10 @@
                 <p class="text-sm text-gray-600 leading-relaxed font-medium mb-1">📅 빠른 날짜 선택:</p>
                 <ul class="space-y-1 text-sm text-gray-600">
                     <li>· <strong>제목 클릭</strong> — "2026년 4월" 텍스트를 클릭하여 날짜 선택 모달 열기</li>
-                    <li>· <strong>연도 클릭</strong> — 모달에서 "2026년" 부분을 클릭하여 연도 그리드 보기</li>
-                    <li>· <strong>연도 선택</strong> — 2020~2031 또는 2030~2041 등 12개 연도 중 선택</li>
-                    <li>· <strong>빠른 네비게이션</strong> — 화살표로 10년 단위 이동 가능</li>
+                    <li>· <strong>연도 선택</strong> — 2020~2031, 2030~2041 등 12개 연도 중에서 선택</li>
+                    <li>· <strong>월 선택</strong> — 연도 선택 후 원하는 월 선택 (클릭하면 즉시 이동)</li>
+                    <li>· <strong>10년 단위 이동</strong> — 화살표(◀ ▶)로 10년 범위 변경 가능</li>
+                    <li>· <strong>뒤로가기</strong> — 월 선택 중 "◀ 연도 변경"을 클릭하여 연도 다시 선택</li>
                 </ul>
             </div>
             <div>
