@@ -193,6 +193,9 @@ function initCalendar() {
     const loader = document.getElementById('calendar-loading');
     if (loader) loader.classList.add('hidden');
 
+    // 캘린더 제목을 클릭 가능하게 만들기
+    setTimeout(makeCalendarTitleClickable, 100);
+
     // 사이드바 높이 동기화
     setTimeout(syncSidebarHeight, 300);
     window.addEventListener('resize', syncSidebarHeight);
@@ -832,6 +835,174 @@ async function submitEditEntry() {
     }
 }
 
+// === 날짜 피커 모달 ===
+
+let datePickerState = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+    selectedDate: new Date(),
+    previousFocusedElement: null, // 모달 닫기 시 포커스 복원용
+};
+
+function openDatePickerModal() {
+    if (!calendar) return;
+
+    const currentDate = calendar.getDate();
+    datePickerState.year = currentDate.getFullYear();
+    datePickerState.month = currentDate.getMonth();
+    datePickerState.selectedDate = new Date(currentDate);
+
+    renderDatePickerCalendar();
+    const modal = document.getElementById('date-picker-modal');
+    modal.classList.remove('hidden');
+
+    // 이전 포커스 저장 (닫기 시 복원)
+    datePickerState.previousFocusedElement = document.activeElement;
+
+    // 배경 스크롤 비활성화
+    document.body.style.overflow = 'hidden';
+
+    // 포커스 관리: 모달이 열리면 포커스를 첫 번째 버튼으로 이동
+    setTimeout(() => {
+        const firstButton = modal.querySelector('button[aria-label="이전 달"]');
+        if (firstButton) firstButton.focus();
+    }, 50);
+}
+
+function closeDatePickerModal() {
+    const modal = document.getElementById('date-picker-modal');
+    modal.classList.add('hidden');
+
+    // 배경 스크롤 복원
+    document.body.style.overflow = '';
+
+    // 이전 포커스 복원
+    if (datePickerState.previousFocusedElement && datePickerState.previousFocusedElement.focus) {
+        setTimeout(() => datePickerState.previousFocusedElement.focus(), 50);
+    }
+}
+
+function renderDatePickerCalendar() {
+    const grid = document.getElementById('picker-calendar-grid');
+    const title = document.getElementById('picker-title');
+
+    // 제목 업데이트
+    title.textContent = `${datePickerState.year}년 ${datePickerState.month + 1}월`;
+
+    // 그리드 초기화
+    grid.innerHTML = '';
+
+    // 1일이 시작할 요일 계산 (0=일요일)
+    const firstDay = new Date(datePickerState.year, datePickerState.month, 1).getDay();
+    const daysInMonth = new Date(datePickerState.year, datePickerState.month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(datePickerState.year, datePickerState.month, 0).getDate();
+
+    // 이전 달 날짜 (비활성)
+    for (let i = firstDay - 1; i >= 0; i--) {
+        const day = daysInPrevMonth - i;
+        const cell = createDatePickerCell(day, true, null);
+        grid.appendChild(cell);
+    }
+
+    // 현재 달 날짜
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(datePickerState.year, datePickerState.month, day);
+        const isSelected = date.toDateString() === datePickerState.selectedDate.toDateString();
+        const isToday = date.toDateString() === today.toDateString();
+
+        const cell = createDatePickerCell(day, false, { selected: isSelected, today: isToday });
+        cell.onclick = () => selectDatePickerDate(day);
+        grid.appendChild(cell);
+    }
+
+    // 다음 달 날짜 (비활성)
+    const totalCells = grid.children.length;
+    for (let day = 1; totalCells + day <= 42; day++) {
+        const cell = createDatePickerCell(day, true, null);
+        grid.appendChild(cell);
+    }
+}
+
+function createDatePickerCell(day, isOtherMonth, flags = {}) {
+    const cell = document.createElement('button');
+    cell.className = 'date-picker-cell';
+    cell.textContent = day;
+    cell.type = 'button';
+
+    if (isOtherMonth) {
+        cell.classList.add('other-month');
+        cell.disabled = true;
+        cell.setAttribute('aria-disabled', 'true');
+    } else {
+        // 접근성: 선택 가능한 셀은 로그인 가능
+        const dateStr = new Date(datePickerState.year, datePickerState.month, day).toLocaleDateString('ko-KR');
+        cell.setAttribute('aria-label', `${dateStr}${flags.selected ? ' 선택됨' : ''}${flags.today ? ' 오늘' : ''}`);
+
+        if (flags.today) {
+            cell.classList.add('today');
+            cell.setAttribute('aria-current', 'date');
+        }
+        if (flags.selected) cell.classList.add('selected');
+    }
+
+    return cell;
+}
+
+function selectDatePickerDate(day) {
+    datePickerState.selectedDate = new Date(datePickerState.year, datePickerState.month, day);
+    renderDatePickerCalendar();
+}
+
+function datePickerPrevMonth() {
+    datePickerState.month--;
+    if (datePickerState.month < 0) {
+        datePickerState.month = 11;
+        datePickerState.year--;
+    }
+    renderDatePickerCalendar();
+}
+
+function datePickerNextMonth() {
+    datePickerState.month++;
+    if (datePickerState.month > 11) {
+        datePickerState.month = 0;
+        datePickerState.year++;
+    }
+    renderDatePickerCalendar();
+}
+
+function datePickerToday() {
+    const today = new Date();
+    datePickerState.year = today.getFullYear();
+    datePickerState.month = today.getMonth();
+    datePickerState.selectedDate = new Date(today);
+    renderDatePickerCalendar();
+}
+
+function datePickerConfirm() {
+    if (calendar) {
+        calendar.gotoDate(datePickerState.selectedDate);
+    }
+    closeDatePickerModal();
+}
+
+// 캘린더 제목을 클릭 가능하게 만들기
+function makeCalendarTitleClickable() {
+    const titleEl = document.querySelector('.fc-toolbar-title');
+    if (titleEl) {
+        titleEl.style.cursor = 'pointer';
+        titleEl.style.userSelect = 'none';
+        titleEl.style.transition = 'opacity 0.2s';
+        titleEl.onclick = openDatePickerModal;
+        titleEl.title = '클릭하여 날짜 선택';
+
+        // 마우스 오버/아웃 효과
+        titleEl.onmouseover = () => { titleEl.style.opacity = '0.7'; };
+        titleEl.onmouseout = () => { titleEl.style.opacity = '1'; };
+    }
+}
+
 // === 도움말 모달 ===
 
 function openHelpModal() {
@@ -841,6 +1012,46 @@ function openHelpModal() {
 function closeHelpModal() {
     document.getElementById('help-modal').classList.add('hidden');
 }
+
+// === 키보드 단축키 및 포커스 관리 ===
+
+document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('date-picker-modal');
+    if (modal.classList.contains('hidden')) return;
+
+    if (e.key === 'Escape') {
+        closeDatePickerModal();
+    } else if (e.key === 'Enter') {
+        datePickerConfirm();
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        datePickerPrevMonth();
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        datePickerNextMonth();
+    } else if (e.key === 'Tab') {
+        // 포커스 트랩: 모달 내부에서만 탭 이동
+        const focusableElements = modal.querySelectorAll(
+            'button, [role="button"], [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+            // Shift+Tab (역방향)
+            if (document.activeElement === firstElement) {
+                e.preventDefault();
+                lastElement.focus();
+            }
+        } else {
+            // Tab (정방향)
+            if (document.activeElement === lastElement) {
+                e.preventDefault();
+                firstElement.focus();
+            }
+        }
+    }
+});
 
 // === 토스트 ===
 

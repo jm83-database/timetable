@@ -242,9 +242,61 @@
 /* 모달 */
 #event-modal,
 #add-event-modal,
-#help-modal {
+#help-modal,
+#date-picker-modal {
     transition: opacity 0.2s;
     backdrop-filter: blur(2px);
+}
+
+/* 날짜 피커 */
+.date-picker-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    color: #374151;
+    background-color: #ffffff;
+    padding: 0;
+    font-family: inherit;
+    user-select: none;
+}
+
+.date-picker-cell:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.date-picker-cell:focus-visible {
+    outline: 2px solid #4A90D9;
+    outline-offset: -2px;
+}
+
+.date-picker-cell:hover:not(.other-month) {
+    background-color: #f3f4f6;
+    border-color: #4A90D9;
+}
+
+.date-picker-cell.other-month {
+    color: #d1d5db;
+    cursor: default;
+}
+
+.date-picker-cell.today {
+    border-color: #4A90D9;
+    font-weight: 600;
+    background-color: #eff6ff;
+}
+
+.date-picker-cell.selected {
+    background-color: #4A90D9;
+    color: white;
+    font-weight: 600;
 }
 
 /* 도움말 모달 스크롤 */
@@ -337,8 +389,23 @@
     }
 
     #add-event-modal .max-w-md,
-    #help-modal .max-w-lg {
+    #help-modal .max-w-lg,
+    #date-picker-modal .max-w-sm {
         margin: 0.5rem;
+    }
+
+    /* 모바일에서 날짜 피커 전체 화면 */
+    @supports (display: flex) {
+        #date-picker-modal {
+            padding: 1rem 0;
+        }
+        #date-picker-modal .max-w-sm {
+            max-width: calc(100% - 2rem);
+        }
+    }
+
+    .date-picker-cell {
+        font-size: 0.75rem;
     }
 }
 

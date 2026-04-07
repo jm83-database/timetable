@@ -312,6 +312,71 @@
     </div>
 </div>
 
+<!-- 날짜 선택 모달 -->
+<div id="date-picker-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog" aria-modal="true" aria-labelledby="date-picker-title">
+    <div class="bg-white rounded-xl shadow-2xl w-full mx-4 max-w-sm overflow-hidden flex flex-col">
+        <!-- 헤더 -->
+        <div class="px-6 py-4 bg-primary flex justify-between items-center">
+            <h3 id="date-picker-title" class="text-lg font-bold text-white">원하는 날짜를 선택하세요</h3>
+            <button onclick="closeDatePickerModal()" class="text-white hover:text-gray-200 transition-colors" aria-label="모달 닫기">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- 바디 -->
+        <div class="px-6 py-4 space-y-4">
+            <!-- 년/월 네비게이션 -->
+            <div class="flex items-center justify-between">
+                <button onclick="datePickerPrevMonth()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="이전 달">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h4 id="picker-title" class="text-lg font-semibold text-gray-800 min-w-max" aria-live="polite"></h4>
+                <button onclick="datePickerNextMonth()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="다음 달">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 요일 헤더 -->
+            <div class="grid grid-cols-7 gap-1">
+                <div class="text-center text-xs font-bold text-gray-500 py-2">일</div>
+                <div class="text-center text-xs font-bold text-gray-500 py-2">월</div>
+                <div class="text-center text-xs font-bold text-gray-500 py-2">화</div>
+                <div class="text-center text-xs font-bold text-gray-500 py-2">수</div>
+                <div class="text-center text-xs font-bold text-gray-500 py-2">목</div>
+                <div class="text-center text-xs font-bold text-gray-500 py-2">금</div>
+                <div class="text-center text-xs font-bold text-gray-500 py-2">토</div>
+            </div>
+
+            <!-- 날짜 그리드 -->
+            <div id="picker-calendar-grid" class="grid grid-cols-7 gap-1" role="grid" aria-label="달력">
+                <!-- JS로 동적 생성 -->
+            </div>
+        </div>
+
+        <!-- 푸터 -->
+        <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-2">
+            <button onclick="datePickerToday()"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
+                오늘
+            </button>
+            <button onclick="closeDatePickerModal()"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
+                취소
+            </button>
+            <button onclick="datePickerConfirm()"
+                    class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                선택
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- 도움말 모달 -->
 <div id="help-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
     <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
