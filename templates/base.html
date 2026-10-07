@@ -43,6 +43,10 @@
                        class="px-3 py-2 rounded-md text-sm font-medium {% if request.path == '/dashboard' or request.path == '/' %}text-primary bg-blue-50{% else %}text-gray-600 hover:text-gray-900{% endif %}">
                         대시보드
                     </a>
+                    <a href="/roster"
+                       class="px-3 py-2 rounded-md text-sm font-medium {% if request.path == '/roster' %}text-primary bg-blue-50{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                        직원근무표
+                    </a>
                     <a href="/upload"
                        class="px-4 py-2 rounded-md text-sm font-medium text-white bg-primary hover:bg-blue-600 transition-colors">
                         + 시간표 업로드

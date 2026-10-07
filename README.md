@@ -2,8 +2,11 @@
 
 교육기관 시간표를 통합 관리하는 웹 캘린더 대시보드입니다.
 Vertex42 엑셀 캘린더 템플릿을 업로드하면 자동으로 수업 일정을 파싱하여 FullCalendar 기반의 월간/주간 캘린더로 시각화합니다.
+**직원근무표** 탭에서는 같은 템플릿으로 작성된 `직원근무표.xlsx`를 올려 사무실 근무자·외부 일정·휴가를 구성원과 공유하고 웹에서 직접 수정할 수 있습니다.
 
 ## 주요 기능
+
+### 수업시간표 (대시보드)
 
 - **엑셀 시간표 파싱** - Vertex42 캘린더 템플릿 자동 인식, 시트별 선택 업로드
 - **복수 과정 관리** - 여러 과정을 색상별로 구분하여 하나의 캘린더에 통합 표시
@@ -20,6 +23,16 @@ Vertex42 엑셀 캘린더 템플릿을 업로드하면 자동으로 수업 일�
 - **효율적인 네비게이션** - 기존 화살표 버튼 + 모달에서 연/월 2단계 선택으로 빠른 이동
 - **도움말 가이드** - 사용 방법 안내 모달 제공
 - **반응형 디자인** - 데스크톱/모바일 대응
+
+### 직원근무표
+
+- **근무표 엑셀 파싱** - 주 블록의 `사무실근무` 행, `노트북방문` 행, 특이사항 행(`과정명-담당자`, `담당자-과정명`, `이름 휴가`)을 자동 분류
+- **월 단위 교체 업로드** - 선택한 시트(월)의 기존 항목을 통째로 교체하므로 수정된 엑셀을 다시 올리면 됨
+- **월간 달력** - 담당자 1명이면 직원 색, 여러 명/없음이면 구분 색(사무실·일정·휴가·노트북·메모)으로 표시
+- **주간 매트릭스** - 행=직원, 열=월~금. 한 일정에 여러 담당자가 있으면 각 행에 모두 표시
+- **날짜별 요약** - 날짜 클릭 시 사이드바에 그날의 사무실 근무자 / 휴가자 / 외부 일정 / 노트북 방문 표시
+- **직원·구분 필터** - 직원 칩 토글(Ctrl+클릭 단독 보기), 구분별 표시/숨김
+- **웹에서 직접 수정** - 항목 추가/수정/삭제, 엑셀 원문(raw_text)과 출처 시트를 상세 모달에서 확인
 
 ## 기술 스택
 
@@ -81,31 +94,48 @@ python app.py
 timetable/
 ├── app.py                    # Flask 앱 팩토리
 ├── config.py                 # 설정 (업로드, DB, 색상 등)
-├── models.py                 # 데이터 모델 (ClassEntry, Course)
-├── routes.py                 # 페이지 + API 라우트
+├── models.py                 # 데이터 모델 (ClassEntry, Course, RosterEntry)
+├── routes.py                 # 시간표 페이지 + API 라우트
+├── routes_roster.py          # 직원근무표 페이지 + /api/roster 라우트
 ├── requirements.txt          # Python 의존성
 ├── .env                      # 환경변수
 │
 ├── services/
-│   ├── excel_parser.py       # Vertex42 엑셀 파서
-│   ├── cosmos_service.py     # 저장소 (Cosmos DB / 로컬 JSON)
-│   └── calendar_service.py   # FullCalendar 이벤트 포맷 변환
+│   ├── excel_parser.py       # Vertex42 수업시간표 파서
+│   ├── roster_parser.py      # 직원근무표 파서 (excel_parser의 블록 감지 재사용)
+│   ├── cosmos_service.py     # 시간표 저장소 (Cosmos DB / 로컬 JSON)
+│   ├── roster_storage.py     # 근무표 저장소 (Cosmos DB / 로컬 JSON)
+│   └── calendar_service.py   # FullCalendar 이벤트 포맷 변환 (시간표 + 근무표)
 │
 ├── static/
-│   ├── css/style.css         # FullCalendar + 커스텀 스타일
+│   ├── css/style.css         # FullCalendar + 커스텀 스타일 (tt-week-*, tt-roster-*)
 │   └── js/
-│       ├── dashboard.js      # 캘린더, 과정 관리, 색상 조정
-│       └── upload.js         # 파일 업로드 워크플로우
+│       ├── dashboard.js      # 시간표 캘린더, 과정 관리, 색상 조정
+│       ├── roster.js         # 근무표 캘린더, 주간 매트릭스, 업로드/수정 모달
+│       └── upload.js         # 시간표 업로드 워크플로우
 │
 ├── templates/
-│   ├── base.html             # 기본 레이아웃
+│   ├── base.html             # 기본 레이아웃 (대시보드 / 직원근무표 / 업로드 탭)
 │   ├── dashboard.html        # 대시보드 (캘린더 + 사이드바)
+│   ├── roster.html           # 직원근무표 (캘린더 + 날짜 요약 + 모달)
 │   └── upload.html           # 업로드 (3단계 위저드)
 │
+├── tests/
+│   └── test_roster_parser.py # 근무표 파서 테스트 (직원근무표.xlsx 필요)
+│
 └── data/
-    ├── courses.json          # 로컬 저장소 (자동 생성)
+    ├── courses.json          # 시간표 로컬 저장소 (자동 생성)
+    ├── roster.json           # 근무표 로컬 저장소 (자동 생성)
     └── uploads/              # 임시 업로드 파일 (처리 후 삭제)
 ```
+
+### 테스트
+
+```bash
+python -m pytest tests/
+```
+
+> 파서 테스트는 프로젝트 루트의 `직원근무표.xlsx`를 픽스처로 사용하며, 파일이 없으면 자동으로 건너뜁니다.
 
 ## 사용 방법
 
@@ -158,6 +188,16 @@ timetable/
 | 9h | 과정 컬러보다 **약간 진한 색** |
 | 10h | 과정 컬러보다 **확실히 진한 색** |
 
+### 직원근무표
+
+1. 상단 **직원근무표** 탭 → 우측 **엑셀 업로드**
+2. `직원근무표.xlsx`를 끌어다 놓으면 시트별로 **실제 연·월**(A1 셀 기준)이 표시됨 — 시트명(`'3월'`)과 실제 월이 달라도 정확히 매핑
+3. 가져올 월 선택 (이번 달 이후가 기본 선택) → **가져오기**. 선택한 월의 기존 항목은 모두 교체됨
+4. **월간**: 이벤트 클릭 → 상세(날짜·구분·담당자·메모·엑셀 원문) → 수정/삭제
+5. **주간**: 행=직원, 열=요일. 셀 클릭 → 사이드바 날짜 요약, 더블클릭 → 그 직원·날짜로 항목 추가
+6. 사이드바 **날짜별 요약**: 사무실 근무자 / 휴가 / 외부 일정 / 노트북 방문. **오늘** 버튼으로 복귀
+7. **+ 항목 추가**: 날짜, 구분(사무실근무·일정·휴가·노트북방문·메모), 제목, 담당자(쉼표 구분, 자동완성), 메모
+
 ## API
 
 ### 과정 관리
@@ -185,6 +225,21 @@ timetable/
 | `GET` | `/api/events` | FullCalendar 이벤트 JSON |
 | `GET` | `/api/stats` | 과정별 통계 |
 | `POST` | `/api/sheets` | 엑셀 파일 업로드 후 시트 목록 반환 |
+
+### 직원근무표
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| `GET` | `/api/roster/entries?start=&end=` | 기간 내 근무 항목 (FullCalendar 종일 이벤트) |
+| `GET` | `/api/roster/employees` | 직원 목록 + 색상, 등록된 월, 구분별 색상 |
+| `GET` | `/api/roster/day?date=YYYY-MM-DD` | 해당 날짜 요약 (office / leave / out / events / laptop / memo) |
+| `POST` | `/api/roster/sheets` | 엑셀 업로드 → 시트별 `{name, year, month}` |
+| `POST` | `/api/roster/upload` | `{filepath, sheets}` 파싱 후 해당 월 교체 저장 |
+| `POST` | `/api/roster/entries` | 항목 추가 `{date, category, title, people, note}` |
+| `PUT` | `/api/roster/entries/:id` | 항목 수정 (부분 업데이트) |
+| `DELETE` | `/api/roster/entries/:id` | 항목 삭제 |
+
+`category`는 `office` · `laptop` · `event` · `leave` · `memo` 중 하나, `people`은 배열 또는 `"김철수, 이영희"` 문자열.
 
 ### 응답 예시
 
@@ -234,7 +289,33 @@ timetable/
 }
 ```
 
+**GET /api/roster/entries**
+
+```json
+[
+  {
+    "id": "roster_20261008_012631_b8fd816f",
+    "title": "AI11타운홀2 · 박명균, 황소연",
+    "start": "2026-10-07",
+    "allDay": true,
+    "color": "#F59E0B",
+    "extendedProps": {
+      "entry_id": "roster_20261008_012631_b8fd816f",
+      "category": "event",
+      "category_label": "일정",
+      "title": "AI11타운홀2",
+      "people": ["박명균", "황소연"],
+      "note": "",
+      "raw_text": "AI11타운홀2_박명균, 황소연",
+      "source_sheet": "10"
+    }
+  }
+]
+```
+
 ## 엑셀 템플릿 형식
+
+### 수업시간표
 
 Vertex42 캘린더 템플릿 기반으로 다음 구조를 인식합니다:
 
@@ -259,6 +340,28 @@ Vertex42 캘린더 템플릿 기반으로 다음 구조를 인식합니다:
 - **공휴일**: 추석, 설날, 성탄절, 방학 등 키워드 자동 감지
 - **점심시간**: 13:00~14:00 자동 포함 (8시간 수업 = 09:00~18:00)
 
+### 직원근무표
+
+같은 Vertex42 월간 템플릿을 사용하며, 요일 열 배치는 수업시간표와 동일합니다. 주 블록(날짜 행 R) 안의 행 의미만 다릅니다:
+
+```
+A1 셀        : 해당 월 1일 (datetime) → 시트명 대신 이 값으로 연·월 판별
+R   (날짜 행) : B열 '사무실근무' 라벨, 요일별 이름 열 = 당일 사무실 근무자
+R+1          : A열 '노트북방문' 라벨, 자유 텍스트 메모
+R+2 ~        : 특이사항
+               '숙대-최진명'            → 일정(숙대) / 담당자 최진명
+               '이대건-마산대'          → 일정(마산대) / 담당자 이대건  (방향 자동 판별)
+               'AI11타운홀2_박명균, 황소연' → 일정 / 담당자 2명
+               '황소연 휴가', '최진명-휴가' → 휴가
+               '김해예정' ↵ '강형주,황소연,최진명' → 이름만 있는 다음 행은 직전 일정의 담당자로 병합
+               '최진명(프로젝트안내)'   → 괄호 안은 메모
+```
+
+- **직원 명단**: 1차 패스에서 `사무실근무` 행의 단일 이름을 수집하고, `X-Y`처럼 양쪽이 모두 이름 형태일 때 알려진 직원이 있는 쪽을 담당자로 판별
+- **노이즈 제거**: `8h` 같은 템플릿 잔재, `메모`, Vertex42 푸터, 해당 월이 아닌 날짜(다음달 첫 주)는 무시
+- **이름 오인식 방지**: `벡스코`, `숙대`, `마산대`, `타운홀`, `대체휴일` 등 2~4자 한글이지만 이름이 아닌 단어는 제외 (`services/roster_parser.py`의 `NOT_NAME`)
+- 자동 분류가 틀린 항목은 상세 모달의 **원문**을 보고 웹에서 수정할 수 있습니다
+
 ## 환경변수
 
 | 변수 | 기본값 | 설명 |
@@ -269,7 +372,18 @@ Vertex42 캘린더 템플릿 기반으로 다음 구조를 인식합니다:
 | `COSMOS_DB_ENDPOINT` | - | Azure Cosmos DB 엔드포인트 (선택) |
 | `COSMOS_DB_KEY` | - | Azure Cosmos DB 키 (선택) |
 
-> Cosmos DB 환경변수가 미설정이면 `data/courses.json`에 로컬 저장됩니다.
+> Cosmos DB 환경변수가 미설정이면 `data/courses.json`(시간표)과 `data/roster.json`(근무표)에 로컬 저장됩니다.
+
+### Cosmos DB 문서 구조
+
+데이터베이스 `TimetableDashboardDB` / 컨테이너 `ScheduleData` 하나를 공유하며, 파티션 키는 `/type`입니다. 컨테이너는 앱 시작 시 `create_container_if_not_exists`로 자동 생성되므로 별도 스키마 작업이 필요 없습니다.
+
+| `type` | 용도 | 주요 필드 |
+|--------|------|-----------|
+| `course` | 과정 메타데이터 | `name`, `color`, `default_start_time`, `entry_count` |
+| `entry` | 수업 일정 | `course_id`, `date`, `class_name`, `instructor`, `hours` |
+| `roster_entry` | 근무표 항목 | `date`, `category`, `title`, `people[]`, `note`, `raw_text`, `source_sheet` |
+| `roster_upload` | 근무표 업로드 이력 | `file_name`, `uploaded_at`, `months[]`, `entry_count` |
 
 ## 배포
 

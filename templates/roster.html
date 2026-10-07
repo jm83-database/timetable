@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}직원근무표 - Timetable Dashboard{% endblock %}
+
+{% block content %}
+<!-- 필터 바 -->
+<div class="mb-4">
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200 space-y-3">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-sm font-medium text-gray-600">직원:</span>
+            <div id="employee-filters" class="flex flex-wrap gap-2"></div>
+            <div id="employee-filter-controls" class="hidden flex items-center gap-1">
+                <button onclick="clearEmployeeFilters()" class="filter-ctrl-btn text-gray-400 hover:text-red-500"
+                        title="모든 직원 숨기기 (Ctrl+클릭으로 단독 보기)">전체 해제</button>
+                <span class="text-gray-300 text-xs select-none">|</span>
+                <button onclick="selectAllEmployees()" class="filter-ctrl-btn text-gray-400 hover:text-blue-500">전체 선택</button>
+            </div>
+            <div id="no-roster" class="hidden text-sm text-gray-400">
+                등록된 근무표가 없습니다. 오른쪽의 <b>엑셀 업로드</b>로 직원근무표.xlsx를 올려주세요.
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                <button onclick="openRosterAddModal()"
+                        class="px-3 py-1.5 text-xs font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors">
+                    + 항목 추가
+                </button>
+                <button onclick="openRosterUploadModal()"
+                        class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-blue-600 transition-colors">
+                    엑셀 업로드
+                </button>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm font-medium text-gray-600">구분:</span>
+            <div id="category-filters" class="flex flex-wrap gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 메인 레이아웃 -->
+<div class="flex flex-col lg:flex-row gap-4">
+    <div class="flex-1 min-w-0">
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <div id="calendar-loading" class="flex items-center justify-center py-16">
+                <span class="text-sm text-gray-500">캘린더 로딩 중...</span>
+            </div>
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- 사이드바: 날짜 요약 -->
+    <div class="lg:w-80 flex-shrink-0">
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-700">날짜별 요약</h3>
+                <button onclick="loadDaySummary(todayYmd())" class="text-xs text-primary hover:underline">오늘</button>
+            </div>
+            <p id="summary-date" class="text-base font-bold text-gray-800 mb-3">-</p>
+            <div id="summary-content" class="space-y-3 text-sm text-gray-700">
+                <p class="text-gray-400 text-xs">달력에서 날짜를 클릭하면 그날의 근무자와 일정을 보여줍니다.</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">등록 현황</h3>
+            <div id="roster-status" class="text-xs text-gray-500">-</div>
+        </div>
+    </div>
+</div>
+
+<!-- 항목 상세 모달 -->
+<div id="roster-detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div id="roster-detail-header" class="px-6 py-4 bg-primary">
+            <div class="flex justify-between items-start">
+                <h3 id="roster-detail-title" class="text-lg font-bold text-white pr-4"></h3>
+                <button onclick="closeRosterDetailModal()" class="text-white hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4 space-y-2 text-sm">
+            <div><span class="text-xs text-gray-500 block">날짜</span><p id="roster-detail-date" class="font-medium text-gray-800"></p></div>
+            <div><span class="text-xs text-gray-500 block">구분</span><p id="roster-detail-category" class="font-medium text-gray-800"></p></div>
+            <div><span class="text-xs text-gray-500 block">담당자</span><p id="roster-detail-people" class="font-medium text-gray-800"></p></div>
+            <div><span class="text-xs text-gray-500 block">메모</span><p id="roster-detail-note" class="font-medium text-gray-800 whitespace-pre-wrap"></p></div>
+            <div><span class="text-xs text-gray-500 block">원문</span><p id="roster-detail-raw" class="text-xs text-gray-500 whitespace-pre-wrap"></p></div>
+        </div>
+        <div class="px-6 py-3 bg-gray-50 flex justify-end space-x-2">
+            <button onclick="openRosterEditModal()" class="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-white hover:bg-blue-500 border border-blue-300 rounded-lg">수정</button>
+            <button onclick="deleteRosterEntry()" class="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-white hover:bg-red-500 border border-red-300 rounded-lg">삭제</button>
+        </div>
+    </div>
+</div>
+
+<!-- 항목 추가/수정 모달 -->
+<div id="roster-form-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="px-6 py-4 bg-primary flex justify-between items-center">
+            <h3 id="roster-form-title" class="text-lg font-bold text-white">근무 항목 추가</h3>
+            <button onclick="closeRosterFormModal()" class="text-white hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-6 py-4 space-y-4">
+            <input type="hidden" id="roster-form-id">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">날짜 <span class="text-red-500">*</span></label>
+                    <input type="date" id="roster-form-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">구분 <span class="text-red-500">*</span></label>
+                    <select id="roster-form-category" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="office">사무실근무</option>
+                        <option value="event">일정 (외부/교육)</option>
+                        <option value="leave">휴가</option>
+                        <option value="laptop">노트북방문</option>
+                        <option value="memo">메모</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">제목 <span class="text-xs text-gray-400">(과정명·장소 등)</span></label>
+                <input type="text" id="roster-form-title-input" maxlength="100" placeholder="예: 숙대, AI11 타운홀"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">담당자 <span class="text-xs text-gray-400">(쉼표로 구분)</span></label>
+                <input type="text" id="roster-form-people" maxlength="200" placeholder="예: 황소연, 최진명" list="employee-datalist"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                <datalist id="employee-datalist"></datalist>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">메모</label>
+                <input type="text" id="roster-form-note" maxlength="300"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-2">
+            <button onclick="closeRosterFormModal()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">취소</button>
+            <button onclick="submitRosterForm()" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded-lg">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 엑셀 업로드 모달 -->
+<div id="roster-upload-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+        <div class="px-6 py-4 bg-primary flex justify-between items-center">
+            <h3 class="text-lg font-bold text-white">직원근무표 엑셀 업로드</h3>
+            <button onclick="closeRosterUploadModal()" class="text-white hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-6 py-4 space-y-4">
+            <div id="roster-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors">
+                <p class="text-sm text-gray-600">여기에 <b>직원근무표.xlsx</b>를 끌어다 놓거나 클릭해서 선택</p>
+                <p id="roster-file-name" class="text-xs text-primary mt-2"></p>
+                <input type="file" id="roster-file-input" accept=".xlsx,.xls" class="hidden">
+            </div>
+            <div id="roster-sheet-section" class="hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">가져올 월 선택</span>
+                    <div class="space-x-2 text-xs">
+                        <button onclick="toggleRosterSheets(true)" class="text-primary hover:underline">전체</button>
+                        <button onclick="toggleRosterSheets(false)" class="text-gray-500 hover:underline">해제</button>
+                    </div>
+                </div>
+                <div id="roster-sheet-list" class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto"></div>
+                <p class="text-xs text-gray-400 mt-2">선택한 월의 기존 항목은 <b>모두 교체</b>됩니다. (웹에서 수정한 내용 포함)</p>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-2">
+            <button onclick="closeRosterUploadModal()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">취소</button>
+            <button id="roster-import-btn" onclick="importRoster()" disabled
+                    class="px-4 py-2 bg-primary hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg">가져오기</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/roster.js') }}"></script>
+{% endblock %}

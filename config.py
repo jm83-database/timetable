@@ -20,6 +20,7 @@ class Config:
     # 로컬 JSON 저장 (Cosmos DB fallback)
     DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
     COURSES_FILE = os.path.join(DATA_DIR, 'courses.json')
+    ROSTER_FILE = os.path.join(DATA_DIR, 'roster.json')
 
     # Azure Cosmos DB
     COSMOS_DB_ENDPOINT = os.environ.get('COSMOS_DB_ENDPOINT')
@@ -49,6 +50,15 @@ class Config:
         '#2ECC71',  # Green
         '#E91E63',  # Pink
     ]
+
+    # 직원근무표 구분별 색상 (담당자가 여러 명이거나 없을 때 사용)
+    ROSTER_CATEGORY_COLORS = {
+        'office': '#4A90D9',
+        'laptop': '#8B5CF6',
+        'event': '#F59E0B',
+        'leave': '#9CA3AF',
+        'memo': '#6B7280',
+    }
 
     # 로그
     LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')

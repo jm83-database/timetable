@@ -257,6 +257,80 @@
     border-radius: 6px;
 }
 
+/* 직원근무표 주간 매트릭스 */
+.tt-roster .tt-week-corner,
+.tt-roster .tt-week-rowhead {
+    width: 110px;
+}
+
+.tt-roster-cell {
+    min-height: 56px;
+}
+
+.tt-roster-card {
+    border-radius: 5px;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    color: #fff;
+    border: 1.5px solid rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.tt-roster-card:last-child {
+    margin-bottom: 0;
+}
+
+.tt-roster-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tt-roster-card-top {
+    font-size: 0.65rem;
+    opacity: 0.95;
+    margin-bottom: 1px;
+}
+
+.tt-roster-card-main {
+    font-weight: 700;
+    word-break: break-word;
+}
+
+.tt-roster-card-sub {
+    font-size: 0.68rem;
+    opacity: 0.9;
+    word-break: break-word;
+}
+
+.tt-roster-card.is-leave {
+    background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, 0.15) 6px 12px);
+}
+
+.tt-roster-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 2px 2px 0;
+}
+
+#roster-drop-zone.drag-over {
+    border-color: #4A90D9;
+    background-color: #eff6ff;
+}
+
+#roster-detail-modal,
+#roster-form-modal,
+#roster-upload-modal {
+    transition: opacity 0.2s;
+    backdrop-filter: blur(2px);
+}
+
 /* 필터 버튼 */
 .course-filter-btn {
     display: inline-flex;

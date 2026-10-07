@@ -58,3 +58,33 @@ class Course:
         if include_entries:
             d["entries"] = [e.to_dict() for e in self.entries]
         return d
+
+
+ROSTER_CATEGORIES = ('office', 'laptop', 'event', 'leave', 'memo')
+
+
+@dataclass
+class RosterEntry:
+    """직원근무표 단일 항목 (날짜 × 구분 × 담당자)"""
+    date: str                          # "2026-10-01"
+    category: str                      # office | laptop | event | leave | memo
+    title: str = ""                    # 사무실근무 / 노트북방문 / 과정명 / 휴가
+    people: List[str] = field(default_factory=list)
+    note: str = ""
+    raw_text: str = ""
+    source_sheet: str = ""
+    id: str = ""
+
+    def to_dict(self):
+        d = {
+            "date": self.date,
+            "category": self.category,
+            "title": self.title,
+            "people": list(self.people),
+            "note": self.note,
+            "raw_text": self.raw_text,
+            "source_sheet": self.source_sheet,
+        }
+        if self.id:
+            d["id"] = self.id
+        return d

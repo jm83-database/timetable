@@ -9,6 +9,7 @@ load_dotenv()
 from flask import Flask
 from config import Config
 from routes import main_bp, api_bp
+from routes_roster import roster_bp, roster_api_bp
 
 
 def create_app():
@@ -24,6 +25,8 @@ def create_app():
     # Blueprint 등록
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(roster_bp)
+    app.register_blueprint(roster_api_bp)
 
     # 보안 헤더
     @app.after_request

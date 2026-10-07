@@ -11,6 +11,7 @@ venv/
 # Data
 data/uploads/
 data/courses.json
+data/roster.json
 logs/
 
 # IDE
