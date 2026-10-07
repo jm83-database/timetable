@@ -26,6 +26,14 @@
                         class="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-blue-600 transition-colors">
                     엑셀 업로드
                 </button>
+                <button onclick="openRosterHelpModal()"
+                        class="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-primary hover:bg-blue-50 transition-colors"
+                        title="도움말">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </button>
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
@@ -172,6 +180,108 @@
             <button onclick="closeRosterUploadModal()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">취소</button>
             <button id="roster-import-btn" onclick="importRoster()" disabled
                     class="px-4 py-2 bg-primary hover:bg-blue-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg">가져오기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 도움말 모달 -->
+<div id="roster-help-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="px-6 py-4 bg-primary flex-shrink-0">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white">직원근무표 사용 가이드</h3>
+                <button onclick="closeRosterHelpModal()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto space-y-5 help-scroll">
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">1</span>
+                    이 페이지는 무엇인가요?
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    사내 <strong>직원근무표.xlsx</strong>를 그대로 올려 날짜별로 <strong>누가 사무실에 있고, 누가 외부 일정이고, 누가 휴가인지</strong>를
+                    한눈에 보는 공유 달력입니다. 보는 것만 할 거라면 날짜를 클릭해 오른쪽 <strong>날짜별 요약</strong>만 확인하면 됩니다.
+                </p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">2</span>
+                    엑셀 업로드 (담당자용)
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    오른쪽 위 <strong>엑셀 업로드</strong> → 파일을 끌어다 놓으면 시트별 연·월이 자동으로 표시됩니다.
+                    가져올 월을 고르고 <strong>가져오기</strong>를 누르면 끝입니다.
+                </p>
+                <ul class="mt-2 space-y-1 text-sm text-gray-600">
+                    <li>· 선택한 월의 기존 항목은 <strong>모두 교체</strong>됩니다 (웹에서 고친 내용 포함) — 엑셀을 정답으로 유지하세요</li>
+                    <li>· 엑셀 작성 규칙: <code class="bg-gray-100 px-1 rounded">사무실근무</code> 행에 이름, <code class="bg-gray-100 px-1 rounded">과정명-담당자</code>, <code class="bg-gray-100 px-1 rounded">이름 휴가</code></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">3</span>
+                    보기와 필터
+                </h4>
+                <ul class="space-y-1 text-sm text-gray-600">
+                    <li>· <strong>월간</strong> — 달력 형태. 항목 클릭 → 상세 보기·수정·삭제</li>
+                    <li>· <strong>주간</strong> — 행=직원, 열=월~금 표. 엑셀처럼 바로 편집할 수 있습니다 (아래 4번)</li>
+                    <li>· <strong>직원 칩</strong> — 클릭해 표시/숨김, <strong>Ctrl+클릭</strong>은 그 사람만 보기</li>
+                    <li>· <strong>구분 칩</strong> — 사무실·일정·휴가·노트북·메모 별로 표시/숨김</li>
+                    <li>· <strong>색상</strong> — 담당자가 1명이면 그 직원 색, 여러 명/없음이면 구분 색. 빗금 무늬는 휴가</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">4</span>
+                    주간 보기에서 엑셀처럼 편집하기
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed mb-2">
+                    셀을 클릭해 선택한 뒤 <strong>글자를 바로 입력</strong>하면 그 직원·날짜에 항목이 만들어집니다.
+                    “휴가”“연차”“반차”는 휴가로, “사무실”은 사무실근무로, 나머지는 외부 일정으로 자동 분류됩니다.
+                </p>
+                <table class="w-full text-sm text-gray-600">
+                    <tbody class="divide-y divide-gray-100">
+                        <tr><td class="py-1 pr-3 font-medium whitespace-nowrap">더블클릭 · Enter</td><td class="py-1">빈 셀에 입력 / 카드 내용 수정 (사무실근무는 메모 수정)</td></tr>
+                        <tr><td class="py-1 pr-3 font-medium whitespace-nowrap">Tab / Shift+Tab</td><td class="py-1">저장하고 옆 셀로 이동 (연속 입력)</td></tr>
+                        <tr><td class="py-1 pr-3 font-medium whitespace-nowrap">드래그</td><td class="py-1">카드를 다른 날·다른 직원 셀로 이동. <strong>Ctrl+드래그</strong>는 복사</td></tr>
+                        <tr><td class="py-1 pr-3 font-medium whitespace-nowrap">Delete</td><td class="py-1">선택한 카드 삭제 (내용을 비우고 Enter해도 삭제)</td></tr>
+                        <tr><td class="py-1 pr-3 font-medium whitespace-nowrap">방향키 · Esc</td><td class="py-1">셀 이동 · 입력 취소/선택 해제</td></tr>
+                        <tr><td class="py-1 pr-3 font-medium whitespace-nowrap">카드의 ⋯</td><td class="py-1">상세 창 열기 (구분 변경, 담당자 여러 명, 엑셀 원문 확인)</td></tr>
+                    </tbody>
+                </table>
+                <p class="text-xs text-gray-400 mt-2">한 일정에 담당자가 여러 명이면 각 직원 행에 모두 보이며, 드래그는 그 행의 직원만 바꿉니다.</p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 flex items-center mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">5</span>
+                    항목 추가 버튼으로 자세히 입력
+                </h4>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    <strong>+ 항목 추가</strong>(또는 날짜 요약 아래 <strong>+ 이 날짜에 항목 추가</strong>)를 누르면
+                    날짜·구분·제목·담당자(쉼표로 여러 명)·메모를 한 번에 입력할 수 있습니다.
+                    담당자 칸은 등록된 직원 이름이 자동완성됩니다.
+                </p>
+            </div>
+            <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
+                <p class="text-sm text-blue-800 font-medium mb-1">💡 이렇게 쓰세요</p>
+                <ul class="space-y-1 text-sm text-blue-700">
+                    <li>· 오늘 누가 사무실에 있나? → 사이드바 <strong>오늘</strong> 버튼</li>
+                    <li>· 내 일정만 보고 싶다 → 내 이름 칩을 <strong>Ctrl+클릭</strong></li>
+                    <li>· 일정이 하루 밀렸다 → 주간 보기에서 카드를 옆 칸으로 <strong>드래그</strong></li>
+                    <li>· 다음 달 근무표가 나왔다 → 엑셀 업로드에서 그 달만 체크해 가져오기</li>
+                </ul>
+            </div>
+        </div>
+        <div class="px-6 py-3 bg-gray-50 flex-shrink-0 text-right">
+            <button onclick="closeRosterHelpModal()"
+                    class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                확인
+            </button>
         </div>
     </div>
 </div>

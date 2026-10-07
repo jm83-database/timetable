@@ -13,6 +13,14 @@ let currentEvent = null;
 let uploadFilepath = null;
 let selectedSummaryDate = null;
 
+// 주간 뷰 인라인 편집 상태 (엑셀처럼 셀 선택 → 입력)
+let selectedCell = null;        // { date, person }
+let selectedEventId = null;
+let pendingEditor = null;       // 저장 후 재렌더링되면 편집기를 열 셀 { date, person }
+let weekRenderGen = 0;
+let dragEventId = null;
+let dragFromPerson = '';
+
 const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
 function escapeHtml(str) {
@@ -210,18 +218,21 @@ function initCalendar() {
     document.getElementById('calendar-loading').classList.add('hidden');
 
     calendarEl.addEventListener('click', (e) => {
+        if (e.target.closest('.tt-roster-editor')) return;
+        const cell = e.target.closest('.tt-roster-cell');
+        if (!cell) return;
         const card = e.target.closest('.tt-roster-card');
-        if (card) {
+        if (e.target.closest('.tt-roster-card-more')) {
             const ev = calendar.getEventById(card.dataset.eventId);
             if (ev) showRosterDetail(ev);
             return;
         }
-        const cell = e.target.closest('.tt-roster-cell');
-        if (cell) {
-            loadDaySummary(cell.dataset.date);
-            if (e.detail === 2) openRosterAddModal(cell.dataset.date, cell.dataset.person || '');
-        }
+        selectCell(cell, card ? card.dataset.eventId : null);
+        loadDaySummary(cell.dataset.date);
+        if (e.detail === 2) openCellEditor(cell, card);
     });
+    initWeekDragDrop(calendarEl);
+    document.addEventListener('keydown', handleWeekKeydown);
 }
 
 async function fetchRosterEvents(fetchInfo, successCallback, failureCallback) {
@@ -230,7 +241,9 @@ async function fetchRosterEvents(fetchInfo, successCallback, failureCallback) {
         const res = await fetch(`/api/roster/entries?${params}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const events = await res.json();
+        const genBefore = weekRenderGen;
         successCallback(events.filter(e => eventVisible(e.extendedProps)));
+        if (pendingEditor) applyPendingEditor(genBefore);
     } catch (err) {
         console.error('근무표 로딩 실패:', err);
         showToast('근무표를 불러오지 못했습니다.', 'error');
@@ -248,8 +261,10 @@ function renderRosterCard(seg) {
     const isOffice = ep.category === 'office';
     const main = isOffice ? '🏢 사무실근무' : (ep.title || ep.note || label);
     const sub = isOffice ? (ep.note || '') : ((ep.people || []).join(', '));
-    return `<div class="tt-roster-card is-${escapeHtml(ep.category)}" data-event-id="${escapeHtml(def.publicId)}"
-         style="background-color:${escapeHtml(color)}" title="${escapeHtml(def.title)}">
+    const selected = def.publicId === selectedEventId ? ' is-selected' : '';
+    return `<div class="tt-roster-card is-${escapeHtml(ep.category)}${selected}" data-event-id="${escapeHtml(def.publicId)}"
+         draggable="true" style="background-color:${escapeHtml(color)}" title="${escapeHtml(def.title)}">
+        <button type="button" class="tt-roster-card-more" title="상세 보기">⋯</button>
         ${isOffice ? '' : `<div class="tt-roster-card-top"><span class="tt-week-badge">${escapeHtml(label)}</span></div>`}
         <div class="tt-roster-card-main">${escapeHtml(main)}</div>
         ${sub ? `<div class="tt-roster-card-sub">${escapeHtml(sub)}</div>` : ''}
@@ -287,34 +302,291 @@ function renderRosterWeekView(props) {
     for (const p of rows.keys()) if (!order.includes(p) && activeEmployees.has(p)) order.push(p);
     const hasUnassigned = Object.keys(unassigned).length > 0;
 
+    weekRenderGen++;
+    // 항목이 없어도 직원 행은 유지해 빈 셀에 바로 입력할 수 있게 함
     if (order.length === 0 && !hasUnassigned) {
-        return { html: '<div class="tt-week-empty">이번 주에 표시할 근무 항목이 없습니다.</div>' };
+        return { html: '<div class="tt-week-empty">표시할 직원이 없습니다. 직원 필터를 선택하거나 <b>+ 항목 추가</b>로 등록해주세요.</div>' };
     }
+    order.push('');   // 담당자 없음 행 (항상 표시: 메모 등 입력용)
 
-    let html = '<div class="tt-week-wrap"><table class="tt-week tt-roster"><thead><tr><th class="tt-week-corner">직원</th>';
+    let html = `<div class="tt-week-wrap"><table class="tt-week tt-roster" data-gen="${weekRenderGen}"><thead><tr><th class="tt-week-corner">직원</th>`;
     for (const day of days) {
         html += `<th class="tt-week-dayhead${day.ymd === today ? ' is-today' : ''}">${day.label}</th>`;
     }
     html += '</tr></thead><tbody>';
 
-    const renderRow = (name, color, byDay) => {
+    const renderRow = (person, color, byDay) => {
+        const label = person || '담당자 없음';
         html += `<tr><th class="tt-week-rowhead">
             <span class="tt-week-dot" style="background-color:${escapeHtml(color)}"></span>
-            <span class="tt-week-coursename" title="${escapeHtml(name)}">${escapeHtml(name)}</span></th>`;
+            <span class="tt-week-coursename" title="${escapeHtml(label)}">${escapeHtml(label)}</span></th>`;
         for (const day of days) {
             const list = (byDay[day.ymd] || []);
-            html += `<td class="tt-week-cell tt-roster-cell${day.ymd === today ? ' is-today' : ''}" data-date="${day.ymd}" data-person="${escapeHtml(name === '담당자 없음' ? '' : name)}">`;
+            const isSel = selectedCell && selectedCell.date === day.ymd && selectedCell.person === person;
+            html += `<td class="tt-week-cell tt-roster-cell${day.ymd === today ? ' is-today' : ''}${isSel ? ' is-selected' : ''}" data-date="${day.ymd}" data-person="${escapeHtml(person)}">`;
             for (const seg of list) html += renderRosterCard(seg);
             html += '</td>';
         }
         html += '</tr>';
     };
 
-    for (const name of order) renderRow(name, employeeColor(name), rows.get(name) || {});
-    if (hasUnassigned) renderRow('담당자 없음', '#9CA3AF', unassigned);
+    for (const name of order) {
+        if (name === '') renderRow('', '#9CA3AF', unassigned);
+        else renderRow(name, employeeColor(name), rows.get(name) || {});
+    }
 
     html += '</tbody></table></div>';
+    html += `<p class="tt-roster-hint">셀 더블클릭·Enter: 입력 &nbsp;·&nbsp; 카드 더블클릭·F2: 수정 &nbsp;·&nbsp; 드래그: 이동 (Ctrl+드래그: 복사) &nbsp;·&nbsp; Delete: 삭제 &nbsp;·&nbsp; Tab/방향키: 이동</p>`;
     return { html };
+}
+
+// === 주간 뷰 인라인 편집 (셀 선택 → 입력 / 드래그 이동 / 키보드) ===
+
+function isTypingTarget(el) {
+    return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+}
+
+function anyModalOpen() {
+    return ['roster-detail-modal', 'roster-form-modal', 'roster-upload-modal', 'roster-help-modal']
+        .some(id => !document.getElementById(id).classList.contains('hidden'));
+}
+
+function findCell(date, person) {
+    return [...document.querySelectorAll('.tt-roster-cell')]
+        .find(c => c.dataset.date === date && c.dataset.person === person) || null;
+}
+
+function selectCell(cell, eventId = null) {
+    document.querySelectorAll('.tt-roster-cell.is-selected, .tt-roster-card.is-selected')
+        .forEach(c => c.classList.remove('is-selected'));
+    selectedCell = cell ? { date: cell.dataset.date, person: cell.dataset.person } : null;
+    selectedEventId = eventId || null;
+    if (!cell) return;
+    cell.classList.add('is-selected');
+    if (eventId) {
+        const card = [...cell.querySelectorAll('.tt-roster-card')].find(c => c.dataset.eventId === eventId);
+        if (card) card.classList.add('is-selected');
+    }
+}
+
+function adjacentCell(cell, dRow, dCol) {
+    const row = cell.parentElement;
+    const rows = [...row.parentElement.children];
+    const colIdx = [...row.querySelectorAll('.tt-roster-cell')].indexOf(cell);
+    const targetRow = rows[rows.indexOf(row) + dRow];
+    if (!targetRow) return null;
+    return targetRow.querySelectorAll('.tt-roster-cell')[colIdx + dCol] || null;
+}
+
+function moveSelection(dRow, dCol) {
+    if (!selectedCell) return;
+    const cur = findCell(selectedCell.date, selectedCell.person);
+    const target = cur && adjacentCell(cur, dRow, dCol);
+    if (!target) return;
+    selectCell(target);
+    loadDaySummary(target.dataset.date);
+}
+
+function selectedCard() {
+    if (!selectedCell || !selectedEventId) return null;
+    const cell = findCell(selectedCell.date, selectedCell.person);
+    return cell ? [...cell.querySelectorAll('.tt-roster-card')].find(c => c.dataset.eventId === selectedEventId) || null : null;
+}
+
+function inferCategory(text) {
+    if (/휴가|연차|반차|병가|휴무/.test(text)) return 'leave';
+    if (/사무실/.test(text)) return 'office';
+    if (/노트북/.test(text)) return 'laptop';
+    return 'event';
+}
+
+async function rosterRequest(url, method, body) {
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: body ? { 'Content-Type': 'application/json' } : undefined,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        showToast(data.message, 'success');
+        await refreshAll();
+        return true;
+    } catch (err) {
+        showToast(err.message || '저장에 실패했습니다.', 'error');
+        return false;
+    }
+}
+
+async function createFromCell(cell, text) {
+    const person = cell.dataset.person;
+    const category = inferCategory(text);
+    return rosterRequest('/api/roster/entries', 'POST', {
+        date: cell.dataset.date,
+        category: person ? category : (category === 'event' ? 'memo' : category),
+        title: text,
+        people: person ? [person] : [],
+        note: '',
+    });
+}
+
+async function saveCardText(ev, field, text) {
+    const ep = ev.extendedProps;
+    if (text === (ep[field] || '')) return false;
+    const url = `/api/roster/entries/${encodeURIComponent(ep.entry_id)}`;
+    if (!text && field === 'title') {
+        if (!confirm(`'${ev.title}' 항목을 삭제하시겠습니까?`)) return false;
+        return rosterRequest(url, 'DELETE');
+    }
+    return rosterRequest(url, 'PUT', { [field]: text });
+}
+
+async function deleteSelectedCard() {
+    const ev = selectedEventId && calendar.getEventById(selectedEventId);
+    if (!ev) return;
+    if (!confirm(`'${ev.title}' 항목을 삭제하시겠습니까?`)) return;
+    selectedEventId = null;
+    await rosterRequest(`/api/roster/entries/${encodeURIComponent(ev.extendedProps.entry_id)}`, 'DELETE');
+}
+
+function openCellEditor(cell, card = null, initialText = null) {
+    if (!cell || document.querySelector('.tt-roster-editor')) return;
+    const ev = card ? calendar.getEventById(card.dataset.eventId) : null;
+    const ep = ev ? ev.extendedProps : null;
+    // 사무실근무 카드는 제목이 고정이므로 메모를 편집
+    const field = ep && ep.category === 'office' ? 'note' : 'title';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tt-roster-editor';
+    input.maxLength = field === 'note' ? 300 : 100;
+    input.value = initialText !== null ? initialText : (ep ? (ep[field] || '') : '');
+    input.placeholder = ev ? '' : '내용 입력 후 Enter';
+    if (card) { card.classList.add('is-editing'); card.appendChild(input); }
+    else cell.appendChild(input);
+    input.focus();
+    if (initialText === null) input.select();
+
+    let done = false;
+    const finish = async (commit, dCol = 0) => {
+        if (done) return;
+        done = true;
+        const text = input.value.trim();
+        const next = dCol ? adjacentCell(cell, 0, dCol) : null;
+        input.remove();
+        if (card) card.classList.remove('is-editing');
+        let changed = false;
+        if (commit) {
+            if (ev) changed = await saveCardText(ev, field, text);
+            else if (text) changed = await createFromCell(cell, text);
+        }
+        if (!next) return;
+        if (changed) pendingEditor = { date: next.dataset.date, person: next.dataset.person };
+        else { selectCell(next); loadDaySummary(next.dataset.date); openCellEditor(next); }
+    };
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+        else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        else if (e.key === 'Tab') { e.preventDefault(); finish(true, e.shiftKey ? -1 : 1); }
+    });
+    input.addEventListener('blur', () => finish(true));
+    ['click', 'dblclick', 'mousedown'].forEach(t => input.addEventListener(t, e => e.stopPropagation()));
+}
+
+// 저장 → 재렌더링 뒤 Tab으로 이동한 다음 셀에 편집기를 연다
+function applyPendingEditor(genBefore, attempt = 0) {
+    if (!pendingEditor) return;
+    const table = document.querySelector('.tt-roster[data-gen]');
+    const rendered = weekRenderGen > genBefore && table && Number(table.dataset.gen) === weekRenderGen;
+    if (rendered) {
+        const target = pendingEditor;
+        pendingEditor = null;
+        const cell = findCell(target.date, target.person);
+        if (cell) { selectCell(cell); loadDaySummary(cell.dataset.date); openCellEditor(cell); }
+        return;
+    }
+    if (attempt < 30) requestAnimationFrame(() => applyPendingEditor(genBefore, attempt + 1));
+    else pendingEditor = null;
+}
+
+function handleWeekKeydown(e) {
+    if (!selectedCell || anyModalOpen() || isTypingTarget(document.activeElement)) return;
+    const cur = findCell(selectedCell.date, selectedCell.person);
+    if (!cur) return;
+    const card = selectedCard();
+
+    if (e.key === 'ArrowRight') { e.preventDefault(); moveSelection(0, 1); return; }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); moveSelection(0, -1); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1, 0); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1, 0); return; }
+    if (e.key === 'Tab') { e.preventDefault(); moveSelection(0, e.shiftKey ? -1 : 1); return; }
+    if (e.key === 'Escape') { selectCell(null); return; }
+    if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); openCellEditor(cur, card); return; }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (card) { e.preventDefault(); deleteSelectedCard(); }
+        return;
+    }
+    // 엑셀처럼 글자를 바로 입력하면 새 항목 편집 시작
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        openCellEditor(cur, null, e.key);
+    }
+}
+
+async function moveOrCopyEvent(ev, fromPerson, toDate, toPerson, copy) {
+    const ep = ev.extendedProps;
+    const fromDate = ev.startStr.slice(0, 10);
+    let people = (ep.people || []).slice();
+    if (fromPerson !== toPerson) {
+        people = people.filter(p => p !== fromPerson);
+        if (toPerson && !people.includes(toPerson)) people.push(toPerson);
+    }
+    if (copy) {
+        return rosterRequest('/api/roster/entries', 'POST', {
+            date: toDate, category: ep.category, title: ep.title || '', people, note: ep.note || '',
+        });
+    }
+    if (fromDate === toDate && fromPerson === toPerson) return false;
+    selectedCell = { date: toDate, person: toPerson };
+    selectedEventId = ev.id;
+    return rosterRequest(`/api/roster/entries/${encodeURIComponent(ep.entry_id)}`, 'PUT', { date: toDate, people });
+}
+
+function initWeekDragDrop(calendarEl) {
+    const clearDragOver = () => calendarEl.querySelectorAll('.tt-roster-cell.drag-over').forEach(c => c.classList.remove('drag-over'));
+
+    calendarEl.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('.tt-roster-card');
+        if (!card || card.classList.contains('is-editing')) { e.preventDefault(); return; }
+        dragEventId = card.dataset.eventId;
+        dragFromPerson = card.closest('.tt-roster-cell').dataset.person;
+        e.dataTransfer.effectAllowed = 'copyMove';
+        e.dataTransfer.setData('text/plain', dragEventId);
+        card.classList.add('is-dragging');
+    });
+    calendarEl.addEventListener('dragend', () => {
+        calendarEl.querySelectorAll('.tt-roster-card.is-dragging').forEach(c => c.classList.remove('is-dragging'));
+        clearDragOver();
+        dragEventId = null;
+    });
+    calendarEl.addEventListener('dragover', (e) => {
+        const cell = e.target.closest('.tt-roster-cell');
+        if (!cell || !dragEventId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move';
+        if (!cell.classList.contains('drag-over')) { clearDragOver(); cell.classList.add('drag-over'); }
+    });
+    calendarEl.addEventListener('drop', async (e) => {
+        const cell = e.target.closest('.tt-roster-cell');
+        if (!cell || !dragEventId) return;
+        e.preventDefault();
+        const ev = calendar.getEventById(dragEventId);
+        const fromPerson = dragFromPerson;
+        clearDragOver();
+        dragEventId = null;
+        if (ev) await moveOrCopyEvent(ev, fromPerson, cell.dataset.date, cell.dataset.person, e.ctrlKey);
+    });
 }
 
 // === 날짜 요약 ===
@@ -472,6 +744,23 @@ function openRosterUploadModal() {
 function closeRosterUploadModal() {
     document.getElementById('roster-upload-modal').classList.add('hidden');
 }
+
+// === 도움말 모달 ===
+
+function openRosterHelpModal() {
+    document.getElementById('roster-help-modal').classList.remove('hidden');
+}
+
+function closeRosterHelpModal() {
+    document.getElementById('roster-help-modal').classList.add('hidden');
+}
+
+document.getElementById('roster-help-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeRosterHelpModal();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeRosterHelpModal();
+});
 
 function resetUploadModal() {
     uploadFilepath = null;

@@ -110,10 +110,11 @@ def get_sheets():
         return jsonify({"success": False, "error": "xlsx 또는 xls 파일만 업로드 가능합니다."}), 400
 
     import uuid as _uuid
-    from werkzeug.utils import secure_filename as _secure
-    original_name = _secure(file.filename) or 'upload.xlsx'
-    safe_name = f"{_uuid.uuid4().hex[:8]}_{original_name}"
+    # secure_filename은 한글을 모두 제거하므로('직원근무표.xlsx' → 'xlsx') 유니코드 문자를 보존하며 직접 정제
+    stem = re.sub(r'[^\w-]+', '_', file.filename.rsplit('.', 1)[0]).strip('._') or 'upload'
+    safe_name = f"{_uuid.uuid4().hex[:8]}_{stem[:80]}.{ext}"
     filepath = os.path.join(Config.UPLOAD_FOLDER, safe_name)
+    os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
     file.save(filepath)
 
     # 실제 엑셀 파일인지 검증
@@ -121,7 +122,8 @@ def get_sheets():
         import openpyxl
         wb = openpyxl.load_workbook(filepath, read_only=True)
         wb.close()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"엑셀 파일 검증 실패 ({file.filename}): {e}")
         try:
             os.remove(filepath)
         except OSError:

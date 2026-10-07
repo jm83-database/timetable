@@ -309,6 +309,73 @@
     background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, 0.15) 6px 12px);
 }
 
+/* 주간 뷰 인라인 편집 */
+.tt-roster-cell.is-selected {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+    background: #eff6ff;
+}
+
+.tt-roster-cell.drag-over {
+    outline: 2px dashed #2563eb;
+    outline-offset: -2px;
+    background: #dbeafe;
+}
+
+.tt-roster-card {
+    position: relative;
+}
+
+.tt-roster-card.is-selected {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563eb;
+}
+
+.tt-roster-card.is-dragging {
+    opacity: 0.4;
+}
+
+.tt-roster-card.is-editing > :not(.tt-roster-editor) {
+    display: none;
+}
+
+.tt-roster-card-more {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    z-index: 1;
+    display: none;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.tt-roster-card:hover .tt-roster-card-more,
+.tt-roster-card.is-selected .tt-roster-card-more {
+    display: block;
+}
+
+.tt-roster-editor {
+    display: block;
+    width: 100%;
+    padding: 3px 6px;
+    border: 2px solid #2563eb;
+    border-radius: 4px;
+    font-size: 0.76rem;
+    color: #111827;
+    background: #fff;
+    outline: none;
+}
+
+.tt-roster-hint {
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: #9ca3af;
+    text-align: right;
+}
+
 .tt-roster-chip {
     display: inline-block;
     padding: 2px 8px;
@@ -326,7 +393,8 @@
 
 #roster-detail-modal,
 #roster-form-modal,
-#roster-upload-modal {
+#roster-upload-modal,
+#roster-help-modal {
     transition: opacity 0.2s;
     backdrop-filter: blur(2px);
 }
@@ -714,6 +782,7 @@
 
     #add-event-modal .max-w-md,
     #help-modal .max-w-lg,
+    #roster-help-modal .max-w-lg,
     #date-picker-modal .max-w-sm {
         margin: 0.5rem;
     }
