@@ -239,7 +239,7 @@ python -m pytest tests/
 | `PUT` | `/api/roster/entries/:id` | 항목 수정 (부분 업데이트) |
 | `DELETE` | `/api/roster/entries/:id` | 항목 삭제 |
 
-`category`는 `office` · `laptop` · `event` · `leave` · `memo` 중 하나, `people`은 배열 또는 `"김철수, 이영희"` 문자열.
+`category`는 `office` · `laptop` · `event` · `leave` · `memo` 중 하나, `people`은 배열 또는 `"홍길동, 전우치"` 문자열.
 
 ### 응답 예시
 
@@ -249,16 +249,16 @@ python -m pytest tests/
 [
   {
     "id": "course_20250210_abc12345_2025-12-01",
-    "title": "(정종현) 클라우드기반 딥러닝1",
+    "title": "(홍길동) 데이터분석 기초1",
     "start": "2025-12-01T09:00:00",
     "end": "2025-12-01T19:00:00",
     "color": "#4A90D9",
     "textColor": "#ffffff",
     "extendedProps": {
       "course_id": "course_20250210_abc12345",
-      "course_name": "AI School 8",
+      "course_name": "A과정 1기",
       "entry_id": "entry_20250210_143025_a1b2c3d4",
-      "instructor": "정종현",
+      "instructor": "홍길동",
       "hours": 9,
       "is_holiday": false
     }
@@ -273,16 +273,16 @@ python -m pytest tests/
   "success": true,
   "stats": [
     {
-      "course_name": "AI School 8",
+      "course_name": "A과정 1기",
       "color": "#4A90D9",
       "total_classes": 128,
       "total_holidays": 11,
       "total_hours": 1107,
       "date_range": "2025-09-15 ~ 2026-05-29",
       "instructors": {
-        "정종현": 18,
-        "인선미": 13,
-        "김자영": 11
+        "홍길동": 18,
+        "성춘향": 13,
+        "이몽룡": 11
       }
     }
   ]
@@ -295,7 +295,7 @@ python -m pytest tests/
 [
   {
     "id": "roster_20261008_012631_b8fd816f",
-    "title": "AI11타운홀2 · 박명균, 황소연",
+    "title": "A과정 설명회 · 전우치, 심청이",
     "start": "2026-10-07",
     "allDay": true,
     "color": "#F59E0B",
@@ -303,10 +303,10 @@ python -m pytest tests/
       "entry_id": "roster_20261008_012631_b8fd816f",
       "category": "event",
       "category_label": "일정",
-      "title": "AI11타운홀2",
-      "people": ["박명균", "황소연"],
+      "title": "A과정 설명회",
+      "people": ["전우치", "심청이"],
       "note": "",
-      "raw_text": "AI11타운홀2_박명균, 황소연",
+      "raw_text": "A과정 설명회_전우치, 심청이",
       "source_sheet": "10"
     }
   }
@@ -349,17 +349,17 @@ A1 셀        : 해당 월 1일 (datetime) → 시트명 대신 이 값으로 �
 R   (날짜 행) : B열 '사무실근무' 라벨, 요일별 이름 열 = 당일 사무실 근무자
 R+1          : A열 '노트북방문' 라벨, 자유 텍스트 메모
 R+2 ~        : 특이사항
-               '숙대-최진명'            → 일정(숙대) / 담당자 최진명
-               '이대건-마산대'          → 일정(마산대) / 담당자 이대건  (방향 자동 판별)
-               'AI11타운홀2_박명균, 황소연' → 일정 / 담당자 2명
-               '황소연 휴가', '최진명-휴가' → 휴가
-               '김해예정' ↵ '강형주,황소연,최진명' → 이름만 있는 다음 행은 직전 일정의 담당자로 병합
-               '최진명(프로젝트안내)'   → 괄호 안은 메모
+               '외부강의-임꺽정'        → 일정(외부강의) / 담당자 임꺽정
+               '장보고-출장'            → 일정(출장) / 담당자 장보고  (방향 자동 판별)
+               'A과정 설명회_전우치, 심청이' → 일정 / 담당자 2명
+               '심청이 휴가', '임꺽정-휴가' → 휴가
+               '출장예정' ↵ '이순신,심청이,임꺽정' → 이름만 있는 다음 행은 직전 일정의 담당자로 병합
+               '임꺽정(프로젝트안내)'   → 괄호 안은 메모
 ```
 
 - **직원 명단**: 1차 패스에서 `사무실근무` 행의 단일 이름을 수집하고, `X-Y`처럼 양쪽이 모두 이름 형태일 때 알려진 직원이 있는 쪽을 담당자로 판별
 - **노이즈 제거**: `8h` 같은 템플릿 잔재, `메모`, Vertex42 푸터, 해당 월이 아닌 날짜(다음달 첫 주)는 무시
-- **이름 오인식 방지**: `벡스코`, `숙대`, `마산대`, `타운홀`, `대체휴일` 등 2~4자 한글이지만 이름이 아닌 단어는 제외 (`services/roster_parser.py`의 `NOT_NAME`)
+- **이름 오인식 방지**: `전시장`, `세미나`, `타운홀`, `대체휴일`처럼 2~4자 한글이지만 이름이 아닌 장소·행사명은 제외 (`services/roster_parser.py`의 `NOT_NAME` 목록에 추가)
 - 자동 분류가 틀린 항목은 상세 모달의 **원문**을 보고 웹에서 수정할 수 있습니다
 
 ## 환경변수
