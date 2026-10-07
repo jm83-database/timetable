@@ -85,6 +85,178 @@
     color: #3b82f6;
 }
 
+/* 주간 과정 매트릭스 뷰 */
+.tt-week-wrap {
+    overflow-x: auto;
+}
+
+.tt-week {
+    width: 100%;
+    min-width: 720px;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+.tt-week th,
+.tt-week td {
+    border-bottom: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
+    vertical-align: top;
+}
+
+.tt-week tr > :last-child {
+    border-right: none;
+}
+
+.tt-week tbody tr:last-child > * {
+    border-bottom: none;
+}
+
+.tt-week-corner,
+.tt-week-rowhead {
+    width: 150px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #f9fafb;
+}
+
+.tt-week-corner,
+.tt-week-dayhead {
+    padding: 10px 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: center;
+    background: #f9fafb;
+}
+
+.tt-week-dayhead.is-today {
+    color: #1d4ed8;
+    background: #dbeafe;
+}
+
+.tt-week-rowhead {
+    padding: 10px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #1f2937;
+    display: table-cell;
+}
+
+.tt-week-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+
+.tt-week-coursename {
+    display: inline-block;
+    max-width: calc(100% - 50px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.tt-week-total {
+    float: right;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+.tt-week-cell {
+    padding: 5px;
+    min-height: 72px;
+    cursor: pointer;
+}
+
+.tt-week-cell.is-today {
+    background: #eff6ff;
+}
+
+.tt-week-card {
+    border-radius: 5px;
+    padding: 5px 7px;
+    margin-bottom: 5px;
+    font-size: 0.76rem;
+    line-height: 1.35;
+    border: 1.5px solid rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.tt-week-card:last-child {
+    margin-bottom: 0;
+}
+
+.tt-week-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tt-week-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    opacity: 0.95;
+}
+
+.tt-week-badge {
+    flex-shrink: 0;
+    padding: 0 6px;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.22);
+    font-weight: 700;
+}
+
+.tt-week-card-instructor {
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.tt-week-card-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+/* 밝은 배경에서도 흰 글씨가 읽히도록 검은 외곽선 */
+.tt-text-outline {
+    -webkit-text-stroke: 0.45px rgba(0, 0, 0, 0.6);
+    paint-order: stroke fill;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.55);
+}
+
+.tt-week-card.is-holiday {
+    background: #f3f4f6;
+    color: #ef4444;
+    border-color: #fecaca;
+    font-weight: 600;
+}
+
+.tt-week-empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.9rem;
+    border: 1px dashed #e5e7eb;
+    border-radius: 6px;
+}
+
 /* 필터 버튼 */
 .course-filter-btn {
     display: inline-flex;

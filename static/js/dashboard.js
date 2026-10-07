@@ -13,7 +13,7 @@ function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
     div.textContent = str;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, '&quot;');
 }
 
 // === 색상 유틸리티 함수 ===
@@ -110,6 +110,116 @@ function adjustColorForHours(hexColor, hours) {
     return { bg: hslToHex(h, s, l), text: textColor };
 }
 
+// === 주간 과정 매트릭스 뷰 ===
+
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+// FullCalendar 마커 Date는 로컬 날짜/시각이 UTC 필드에 담겨 있음
+function markerYmd(d) {
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${m}-${day}`;
+}
+
+function markerHm(d) {
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+function localYmd(d) {
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function renderWeekCard(seg, courseColor) {
+    const def = seg.def;
+    const ep = def.extendedProps || {};
+    const id = escapeHtml(def.publicId);
+
+    if (ep.is_holiday) {
+        return `<div class="tt-week-card is-holiday" data-event-id="${id}" title="${escapeHtml(def.title)}">
+            <div class="tt-week-card-name">${escapeHtml(def.title)}</div>
+        </div>`;
+    }
+
+    const hours = Number(ep.hours) || 0;
+    const adjusted = adjustColorForHours(courseColor, hours);
+    const outline = adjusted.text === '#ffffff' ? ' tt-text-outline' : '';
+    const time = `${markerHm(seg.range.start)}~${markerHm(seg.range.end)}`;
+    const instructor = (ep.instructor || '미정').replace(/,/g, ', ');
+    const className = ep.class_name || def.title;
+    const tooltip = `${ep.course_name || ''} · ${def.title} - ${hours}h`;
+
+    return `<div class="tt-week-card${outline}" data-event-id="${id}" title="${escapeHtml(tooltip)}"
+         style="background-color:${adjusted.bg};color:${adjusted.text}">
+        <div class="tt-week-card-top"><span>${time}</span><span class="tt-week-badge">${hours}h</span></div>
+        <div class="tt-week-card-instructor">${escapeHtml(instructor)}</div>
+        <div class="tt-week-card-name">${escapeHtml(className)}</div>
+    </div>`;
+}
+
+function renderCourseWeekView(props) {
+    const range = props.dateProfile.activeRange;
+    const todayYmd = localYmd(new Date());
+
+    const days = [];
+    for (let d = new Date(range.start); d < range.end; d = new Date(d.getTime() + 86400000)) {
+        const dow = d.getUTCDay();
+        if (dow === 0 || dow === 6) continue;
+        days.push({ ymd: markerYmd(d), label: `${WEEKDAY_KO[dow]} ${d.getUTCMonth() + 1}/${d.getUTCDate()}` });
+    }
+
+    // 과정별 → 날짜별로 이벤트 묶기
+    const byCourse = new Map();
+    for (const seg of FullCalendar.sliceEvents(props, false)) {
+        const ep = seg.def.extendedProps || {};
+        const cid = ep.course_id || '';
+        if (!byCourse.has(cid)) byCourse.set(cid, { name: ep.course_name || '', hours: 0, days: {} });
+        const row = byCourse.get(cid);
+        const ymd = markerYmd(seg.range.start);
+        (row.days[ymd] = row.days[ymd] || []).push(seg);
+        if (!ep.is_holiday) row.hours += Number(ep.hours) || 0;
+    }
+
+    // 필터 바와 같은 순서, 이번 주에 수업이 있는 과정만
+    const order = courses.map(c => c.id).filter(id => byCourse.has(id));
+    for (const id of byCourse.keys()) {
+        if (!order.includes(id)) order.push(id);
+    }
+
+    if (order.length === 0) {
+        return { html: '<div class="tt-week-empty">이번 주에 표시할 수업이 없습니다.</div>' };
+    }
+
+    let html = '<div class="tt-week-wrap"><table class="tt-week"><thead><tr><th class="tt-week-corner">과정</th>';
+    for (const day of days) {
+        html += `<th class="tt-week-dayhead${day.ymd === todayYmd ? ' is-today' : ''}">${day.label}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    for (const cid of order) {
+        const row = byCourse.get(cid);
+        const course = courses.find(c => c.id === cid);
+        const color = course ? course.color : '#4A90D9';
+        const name = course ? course.name : row.name;
+        html += `<tr><th class="tt-week-rowhead">
+            <span class="tt-week-dot" style="background-color:${escapeHtml(color)}"></span>
+            <span class="tt-week-coursename" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+            <span class="tt-week-total">${row.hours}h</span>
+        </th>`;
+        for (const day of days) {
+            const list = (row.days[day.ymd] || []).sort((a, b) => a.range.start - b.range.start);
+            html += `<td class="tt-week-cell${day.ymd === todayYmd ? ' is-today' : ''}" data-date="${day.ymd}">`;
+            for (const seg of list) html += renderWeekCard(seg, color);
+            html += '</td>';
+        }
+        html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+    return { html };
+}
+
 // === 사이드바 높이 동기화 ===
 
 function syncSidebarHeight() {
@@ -133,12 +243,20 @@ function initCalendar() {
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek'
+            right: 'dayGridMonth,courseWeek'
         },
         buttonText: {
             today: '오늘',
             month: '월간',
-            week: '주간',
+        },
+        views: {
+            courseWeek: {
+                duration: { weeks: 1 },
+                buttonText: '주간',
+                hiddenDays: [0, 6],
+                titleFormat: { year: 'numeric', month: 'long', day: 'numeric' },
+                content: renderCourseWeekView,
+            },
         },
         firstDay: 0, // 일요일 시작
         height: 'auto',
@@ -192,6 +310,18 @@ function initCalendar() {
     // 초기 로딩 완료 후 숨김
     const loader = document.getElementById('calendar-loading');
     if (loader) loader.classList.add('hidden');
+
+    // 주간 매트릭스 뷰: 카드 클릭 → 상세, 빈 셀 클릭 → 수업 추가
+    calendarEl.addEventListener('click', (e) => {
+        const card = e.target.closest('.tt-week-card');
+        if (card) {
+            const ev = calendar.getEventById(card.dataset.eventId);
+            if (ev) showEventModal(ev);
+            return;
+        }
+        const cell = e.target.closest('.tt-week-cell');
+        if (cell) openAddModal(cell.dataset.date);
+    });
 
     // 캘린더 제목을 클릭 가능하게 만들기
     setTimeout(makeCalendarTitleClickable, 100);
