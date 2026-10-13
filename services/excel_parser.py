@@ -2,7 +2,7 @@
 Vertex42 캘린더 엑셀 템플릿 파서
 """
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 import openpyxl
 import logging
 
@@ -31,6 +31,10 @@ HOLIDAY_KEYWORDS = {
     '구정', '설날', '연휴', '휴일', '메모', '새해',
 }
 
+# 점심시간 (분 단위)
+LUNCH_START = 13 * 60
+LUNCH_END = 14 * 60
+
 
 def get_sheet_names(filepath):
     """엑셀 파일의 시트 목록 반환 (정보 시트 제외)"""
@@ -40,18 +44,45 @@ def get_sheet_names(filepath):
     return sheets
 
 
+def _to_minutes(time_str):
+    h, m = map(int, time_str.split(':'))
+    return h * 60 + m
+
+
+def normalize_hours(value):
+    """수업시간을 분 단위로 반올림 (정수면 int, 예: 4.5 / 4.333..). 숫자가 아니면 None"""
+    if isinstance(value, bool):
+        return None
+    try:
+        minutes = round(float(value) * 60)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    hours = minutes / 60
+    return int(hours) if hours.is_integer() else hours
+
+
 def calculate_end_time(start_time_str, hours):
-    """시작 시간 + 수업 시간 → 종료 시간 계산 (점심시간 13:00~14:00 포함)"""
-    h, m = map(int, start_time_str.split(':'))
-    start = datetime(2000, 1, 1, h, m)
-    end = start + timedelta(hours=hours)
+    """시작 시간 + 수업 시간(분 단위 소수 허용) → 종료 시간 계산 (점심시간 13:00~14:00 포함)"""
+    start = _to_minutes(start_time_str)
+    end = start + round(hours * 60)
 
     # 점심시간 (13:00~14:00) 걸치면 1시간 추가
-    lunch_start = datetime(2000, 1, 1, 13, 0)
-    if start < lunch_start and end > lunch_start:
-        end += timedelta(hours=1)
+    if start < LUNCH_START and end > LUNCH_START:
+        end += 60
 
-    return end.strftime('%H:%M')
+    return f"{(end // 60) % 24:02d}:{end % 60:02d}"
+
+
+def calculate_hours(start_time_str, end_time_str):
+    """시작~종료 시각 → 수업시간 (13:00 이전 시작 시 점심시간과 겹치는 분만큼 제외). 종료가 시작 이전이면 None"""
+    start = _to_minutes(start_time_str)
+    end = _to_minutes(end_time_str)
+    if end <= start:
+        return None
+    minutes = end - start
+    if start < LUNCH_START:
+        minutes -= max(0, min(end, LUNCH_END) - LUNCH_START)
+    return normalize_hours(minutes / 60)
 
 
 def _detect_week_start_rows(ws):
@@ -97,8 +128,8 @@ def _is_korean_name(text):
     # 숫자만 있는 경우 제외
     if cleaned.replace('h', '').replace('H', '').replace(' ', '').isdigit():
         return False
-    # '8h' 같은 시간 형식 제외
-    if re.match(r'^\d+h?$', cleaned, re.IGNORECASE):
+    # '8h', '4.5h' 같은 시간 형식 제외
+    if re.match(r'^\d+(?:\.\d+)?h?$', cleaned, re.IGNORECASE):
         return False
     # 이름이 아닌 키워드 필터
     if cleaned in NOT_NAME_WORDS:
@@ -171,10 +202,10 @@ def _extract_instructors_and_hours(ws, date_col, class_col, week_row, default_ho
                 continue
 
             if isinstance(cell_val, (int, float)):
-                # 숫자: 수업시간 (1~12 범위)
-                val = int(cell_val)
-                if 1 <= val <= 12 and numeric_hours is None:
-                    numeric_hours = val
+                # 숫자: 수업시간 (0 초과 ~12 범위, 소수 허용)
+                val = float(cell_val)
+                if 0 < val <= 12 and numeric_hours is None:
+                    numeric_hours = normalize_hours(val)
             elif isinstance(cell_val, str):
                 text = cell_val.strip()
                 if not text:
@@ -186,19 +217,19 @@ def _extract_instructors_and_hours(ws, date_col, class_col, week_row, default_ho
                     if name not in instructors:
                         instructors.append(name)
 
-                # 텍스트 내 시간 추출 (12h 이하만 — 16h 버그 수정)
+                # 텍스트 내 시간 추출 (12h 이하만 — 16h 버그 수정, '4.5h' 소수 허용)
                 for part in text.split():
-                    m = re.match(r'^(\d+)h$', part, re.IGNORECASE)
+                    m = re.match(r'^(\d+(?:\.\d+)?)h$', part, re.IGNORECASE)
                     if m:
-                        h = int(m.group(1))
-                        if 1 <= h <= 12:
+                        h = float(m.group(1))
+                        if 0 < h <= 12:
                             text_hours_list.append(h)
 
     # 시간 결정: 숫자 셀 우선 → 텍스트 합산 → 기본값
     if numeric_hours is not None:
         hours = numeric_hours
     elif text_hours_list:
-        hours = sum(text_hours_list)
+        hours = normalize_hours(sum(text_hours_list))
     else:
         hours = default_hours
 
@@ -251,8 +282,8 @@ def parse_timetable(filepath, selected_sheets, default_start_time='09:00', defau
                 # 3. 공휴일 체크
                 is_holiday = any(kw in class_name for kw in HOLIDAY_KEYWORDS)
 
-                # 4. 수업명에서 잔여 시간 패턴 제거 ("수업명 3h" → "수업명")
-                class_name = re.sub(r'\s+\d+h\s*$', '', class_name, flags=re.IGNORECASE)
+                # 4. 수업명에서 잔여 시간 패턴 제거 ("수업명 3h" / "수업명 4.5h" → "수업명")
+                class_name = re.sub(r'\s+\d+(?:\.\d+)?h\s*$', '', class_name, flags=re.IGNORECASE)
 
                 # 5. 강사명(복수), 수업시간 추출
                 instructor = ""

@@ -4,6 +4,7 @@ FullCalendar 이벤트 포맷 변환 서비스
 from collections import defaultdict
 
 from config import Config
+from services.excel_parser import normalize_hours
 
 ROSTER_CATEGORY_LABELS = {
     'office': '사무실',
@@ -169,7 +170,7 @@ def get_course_stats(courses):
         total_entries = len(entries)
         class_entries = [e for e in entries if not e.get('is_holiday', False)]
         holiday_entries = [e for e in entries if e.get('is_holiday', False)]
-        total_hours = sum(e.get('hours', 0) for e in class_entries)
+        total_hours = normalize_hours(sum(e.get('hours', 0) for e in class_entries))
 
         # 강사별 수업 수 (쉼표로 구분된 복수 강사 개별 집계)
         instructor_counts = defaultdict(int)

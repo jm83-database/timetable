@@ -11,7 +11,7 @@ class ClassEntry:
     date: str                  # "2025-09-16"
     class_name: str            # "AI기본의 이해 및 활용1"
     instructor: str = ""       # "강명호" 또는 "강명호,인선미" (복수 강사)
-    hours: int = 8             # 수업시간
+    hours: float = 8           # 수업시간 (분 단위 소수 허용, 예: 4.5)
     start_time: str = "09:00"
     end_time: str = "18:00"
     is_holiday: bool = False

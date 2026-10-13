@@ -25,7 +25,40 @@ def _validate_time(t):
 
 
 def _sanitize_name(name, max_len=50):
+    """공백 제거 후 max_len까지 자름 (None이면 길이 제한 없음)"""
     return name.strip()[:max_len] if name else ''
+
+
+def _normalize_instructor(value, max_len=50):
+    """'정종현, 이정환' / '정종현/이정환' → '정종현,이정환' (저장 형식: 쉼표만, 공백·중복 제거)"""
+    names = [n.strip() for n in re.split(r'[,/]', value or '') if n.strip()]
+    return ','.join(dict.fromkeys(names))[:max_len]
+
+
+def _resolve_class_time(data):
+    """start_time + (end_time | hours) → (hours, start_time, end_time). 종료 시각이 있으면 분 단위로 수업시간 계산. 오류 시 ValueError"""
+    from services.excel_parser import calculate_end_time, calculate_hours, normalize_hours
+
+    start_time = data.get('start_time', '09:00')
+    if not _validate_time(start_time):
+        start_time = '09:00'
+
+    end_time = data.get('end_time')
+    if end_time:
+        if not _validate_time(end_time):
+            raise ValueError("종료 시각 형식이 올바르지 않습니다. (HH:MM)")
+        hours = calculate_hours(start_time, end_time)
+        if hours is None:
+            raise ValueError("종료 시각은 시작 시각보다 늦어야 합니다.")
+    else:
+        hours = normalize_hours(data.get('hours', 8))
+        if hours is None:
+            raise ValueError("수업시간은 숫자로 입력해주세요. (예: 4.5)")
+        end_time = calculate_end_time(start_time, hours)
+
+    if not 0 < hours <= 12:
+        raise ValueError("수업시간은 0보다 크고 12시간 이하여야 합니다.")
+    return hours, start_time, end_time
 
 
 # ===== 페이지 라우트 =====
@@ -329,7 +362,6 @@ def update_course(course_id):
 def add_entry(course_id):
     """과정에 개별 수업 일정 추가"""
     from services.cosmos_service import get_storage
-    from services.excel_parser import calculate_end_time
 
     data = request.get_json()
     if not data:
@@ -337,12 +369,10 @@ def add_entry(course_id):
 
     # 필수 필드
     date = data.get('date', '').strip()
-    class_name = _sanitize_name(data.get('class_name', ''), max_len=100)
+    class_name = _sanitize_name(data.get('class_name', ''), max_len=None)
 
     # 선택 필드 (기본값)
-    instructor = _sanitize_name(data.get('instructor', ''), max_len=50)
-    hours = data.get('hours', 8)
-    start_time = data.get('start_time', '09:00')
+    instructor = _normalize_instructor(data.get('instructor', ''))
     is_holiday = bool(data.get('is_holiday', False))
 
     # 입력 검증
@@ -350,13 +380,10 @@ def add_entry(course_id):
         return jsonify({"success": False, "error": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"}), 400
     if not class_name:
         return jsonify({"success": False, "error": "수업명을 입력해주세요."}), 400
-    if not isinstance(hours, int) or hours < 1 or hours > 12:
-        return jsonify({"success": False, "error": "수업시간은 1~12시간 사이로 입력해주세요."}), 400
-    if not _validate_time(start_time):
-        start_time = '09:00'
-
-    # end_time 계산
-    end_time = calculate_end_time(start_time, hours)
+    try:
+        hours, start_time, end_time = _resolve_class_time(data)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
 
     entry = {
         "date": date,
@@ -396,31 +423,25 @@ def delete_entry(course_id, entry_id):
 def update_entry(course_id, entry_id):
     """개별 수업 일정 수정"""
     from services.cosmos_service import get_storage
-    from services.excel_parser import calculate_end_time
 
     data = request.get_json()
     if not data:
         return jsonify({"success": False, "error": "요청 데이터가 없습니다."}), 400
 
     date = data.get('date', '').strip()
-    class_name = _sanitize_name(data.get('class_name', ''), max_len=100)
+    class_name = _sanitize_name(data.get('class_name', ''), max_len=None)
 
     if not date or not DATE_RE.match(date):
         return jsonify({"success": False, "error": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"}), 400
     if not class_name:
         return jsonify({"success": False, "error": "수업명을 입력해주세요."}), 400
 
-    instructor = _sanitize_name(data.get('instructor', ''), max_len=50)
-    hours = data.get('hours', 8)
-    start_time = data.get('start_time', '09:00')
+    instructor = _normalize_instructor(data.get('instructor', ''))
     is_holiday = bool(data.get('is_holiday', False))
-
-    if not isinstance(hours, int) or hours < 1 or hours > 12:
-        return jsonify({"success": False, "error": "수업시간은 1~12시간 사이로 입력해주세요."}), 400
-    if not _validate_time(start_time):
-        start_time = '09:00'
-
-    end_time = calculate_end_time(start_time, hours)
+    try:
+        hours, start_time, end_time = _resolve_class_time(data)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
 
     updates = {
         "date": date,

@@ -110,6 +110,67 @@ function adjustColorForHours(hexColor, hours) {
     return { bg: hslToHex(h, s, l), text: textColor };
 }
 
+// === 수업시간 표시 / 시작·종료 시각 동기화 (서버 excel_parser 규칙과 동일) ===
+
+const LUNCH_START_MIN = 13 * 60;
+const LUNCH_END_MIN = 14 * 60;
+
+function hoursToMinutes(h) {
+    return Math.round((Number(h) || 0) * 60);
+}
+
+// 8 → "8h", 4.5 → "4.5h", 4.333 → "4.33h"
+function formatHoursShort(h) {
+    const n = hoursToMinutes(h) / 60;
+    return `${Number.isInteger(n) ? n : n.toFixed(2).replace(/\.?0+$/, '')}h`;
+}
+
+// 4.5 → "4시간 30분"
+function formatHoursLong(h) {
+    const mins = hoursToMinutes(h);
+    const hh = Math.floor(mins / 60), mm = mins % 60;
+    return mm ? `${hh}시간 ${mm}분` : `${hh}시간`;
+}
+
+function hmToMinutes(hm) {
+    const [h, m] = (hm || '').split(':').map(Number);
+    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
+}
+
+// 시작 + 수업시간 → 종료 (13:00 이전 시작이 점심시간을 넘으면 1시간 추가). 자정을 넘으면 ''
+function calcEndTime(startHm, hours) {
+    const start = hmToMinutes(startHm);
+    if (start === null || !(hours > 0)) return '';
+    let end = start + hoursToMinutes(hours);
+    if (start < LUNCH_START_MIN && end > LUNCH_START_MIN) end += 60;
+    if (end >= 1440) return '';
+    return `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+}
+
+// 시작~종료 → 수업시간 (13:00 이전 시작 시 점심시간과 겹치는 분 제외). 종료가 시작 이전이면 null
+function calcHours(startHm, endHm) {
+    const start = hmToMinutes(startHm), end = hmToMinutes(endHm);
+    if (start === null || end === null || end <= start) return null;
+    let mins = end - start;
+    if (start < LUNCH_START_MIN) mins -= Math.max(0, Math.min(end, LUNCH_END_MIN) - LUNCH_START_MIN);
+    return mins / 60;
+}
+
+// 수업시간·시작 변경 → 종료 재계산, 종료 변경 → 수업시간 재계산
+function bindClassTimeSync(prefix) {
+    const hoursEl = document.getElementById(`${prefix}-hours`);
+    const startEl = document.getElementById(`${prefix}-start-time`);
+    const endEl = document.getElementById(`${prefix}-end-time`);
+    const syncEnd = () => { endEl.value = calcEndTime(startEl.value, parseFloat(hoursEl.value)); };
+    hoursEl.addEventListener('input', syncEnd);
+    startEl.addEventListener('input', syncEnd);
+    endEl.addEventListener('change', () => {
+        const h = calcHours(startEl.value, endEl.value);
+        if (h === null) { syncEnd(); return; }
+        hoursEl.value = Number.isInteger(h) ? h : h.toFixed(2).replace(/\.?0+$/, '');
+    });
+}
+
 // === 주간 과정 매트릭스 뷰 ===
 
 const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
@@ -148,11 +209,12 @@ function renderWeekCard(seg, courseColor) {
     const time = `${markerHm(seg.range.start)}~${markerHm(seg.range.end)}`;
     const instructor = (ep.instructor || '미정').replace(/,/g, ', ');
     const className = ep.class_name || def.title;
-    const tooltip = `${ep.course_name || ''} · ${def.title} - ${hours}h`;
+    const hoursLabel = formatHoursShort(hours);
+    const tooltip = `${ep.course_name || ''} · ${def.title} - ${hoursLabel}`;
 
     return `<div class="tt-week-card${outline}" data-event-id="${id}" title="${escapeHtml(tooltip)}"
          style="background-color:${adjusted.bg};color:${adjusted.text}">
-        <div class="tt-week-card-top"><span>${time}</span><span class="tt-week-badge">${hours}h</span></div>
+        <div class="tt-week-card-top"><span>${time}</span><span class="tt-week-badge">${hoursLabel}</span></div>
         <div class="tt-week-card-instructor">${escapeHtml(instructor)}</div>
         <div class="tt-week-card-name">${escapeHtml(className)}</div>
     </div>`;
@@ -205,7 +267,7 @@ function renderCourseWeekView(props) {
         html += `<tr><th class="tt-week-rowhead">
             <span class="tt-week-dot" style="background-color:${escapeHtml(color)}"></span>
             <span class="tt-week-coursename" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
-            <span class="tt-week-total">${row.hours}h</span>
+            <span class="tt-week-total">${formatHoursShort(row.hours)}</span>
         </th>`;
         for (const day of days) {
             const list = (row.days[day.ymd] || []).sort((a, b) => a.range.start - b.range.start);
@@ -233,6 +295,8 @@ function syncSidebarHeight() {
 document.addEventListener('DOMContentLoaded', () => {
     initCalendar();
     loadCourses();
+    bindClassTimeSync('add');
+    bindClassTimeSync('edit');
 });
 
 function initCalendar() {
@@ -291,7 +355,7 @@ function initCalendar() {
 
             // 일반 수업 툴팁
             let tooltip = info.event.title;
-            if (hours) tooltip += ` - ${hours}h`;
+            if (hours) tooltip += ` - ${formatHoursShort(hours)}`;
             info.el.title = tooltip;
         },
         loading: (isLoading) => {
@@ -417,7 +481,7 @@ async function loadStats() {
                     <div class="text-gray-500">수업 일수</div>
                     <div class="font-medium text-gray-700 text-right">${stat.total_classes}일</div>
                     <div class="text-gray-500">총 수업시간</div>
-                    <div class="font-medium text-gray-700 text-right">${stat.total_hours}시간</div>
+                    <div class="font-medium text-gray-700 text-right">${formatHoursLong(stat.total_hours)}</div>
                     ${stat.total_holidays > 0 ? `
                     <div class="text-gray-500">휴일</div>
                     <div class="font-medium text-red-500 text-right">${stat.total_holidays}일</div>
@@ -643,7 +707,7 @@ function showEventModal(event) {
 
     const startTime = start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
     const endTime = event.end ? event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
-    document.getElementById('modal-time').textContent = `${startTime} ~ ${endTime} (${hours}시간)`;
+    document.getElementById('modal-time').textContent = `${startTime} ~ ${endTime} (${formatHoursLong(hours)})`;
 
     modal.classList.remove('hidden');
 }
@@ -722,6 +786,7 @@ function openAddModal(dateStr) {
     document.getElementById('add-instructor').value = '';
     document.getElementById('add-hours').value = '8';
     document.getElementById('add-start-time').value = '09:00';
+    document.getElementById('add-end-time').value = calcEndTime('09:00', 8);
     document.getElementById('add-is-holiday').checked = false;
 
     modal.classList.remove('hidden');
@@ -789,14 +854,16 @@ async function submitAddEntry() {
     const date = document.getElementById('add-date').value;
     const className = document.getElementById('add-class-name').value.trim();
     const instructor = document.getElementById('add-instructor').value.trim();
-    const hours = parseInt(document.getElementById('add-hours').value) || 8;
+    const hours = parseFloat(document.getElementById('add-hours').value) || 8;
     const startTime = document.getElementById('add-start-time').value || '09:00';
+    const endTime = document.getElementById('add-end-time').value || calcEndTime(startTime, hours);
     const isHoliday = document.getElementById('add-is-holiday').checked;
 
     // 클라이언트 검증
     if (!courseId) { showToast('과정을 선택해주세요.', 'error'); return; }
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
     if (!className) { showToast('수업명을 입력해주세요.', 'error'); return; }
+    if (hours > 12) { showToast('수업시간은 12시간 이하로 입력해주세요.', 'error'); return; }
 
     // 새 과정 생성이 필요한 경우
     if (courseId === '__new__') {
@@ -838,6 +905,7 @@ async function submitAddEntry() {
                 instructor,
                 hours,
                 start_time: startTime,
+                end_time: endTime,
                 is_holiday: isHoliday,
             })
         });
@@ -887,6 +955,27 @@ async function deleteEventFromModal() {
 
 // === 수업 수정 모달 ===
 
+// 과거에 표시용 제목 "(강사) 수업명"이 수업명으로 저장되면서 누적된 접두어 제거 (알려진 강사명으로만 이루어진 괄호만)
+function stripInstructorPrefix(className, knownNames) {
+    let name = (className || '').trim();
+    const re = /^\(([^()]*)\)\s*/;
+    let m;
+    while ((m = re.exec(name))) {
+        const tokens = m[1].split(/[,/]/).map(s => s.trim()).filter(Boolean);
+        if (!tokens.length || !tokens.every(t => knownNames.has(t))) break;
+        name = name.slice(m[0].length);
+    }
+    return name;
+}
+
+function knownInstructorNames(current) {
+    const names = new Set();
+    const add = (s) => (s || '').split(/[,/]/).forEach(t => { t = t.trim(); if (t) names.add(t); });
+    add(current);
+    calendar.getEvents().forEach(ev => add(ev.extendedProps.instructor));
+    return names;
+}
+
 function openEditModal() {
     if (!currentEvent) return;
     const props = currentEvent.extendedProps;
@@ -897,18 +986,23 @@ function openEditModal() {
 
     // 시작 시각 추출 (HH:MM)
     const startTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const e = currentEvent.end;
+    const endTime = e ? `${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`
+                      : calcEndTime(startTime, props.hours || 8);
 
     // 과정 색상 적용 (헤더 + 완료 버튼)
     const courseColor = currentEvent.backgroundColor || '#4A90D9';
     document.getElementById('edit-modal-header').style.backgroundColor = courseColor;
     document.getElementById('edit-submit-btn').style.backgroundColor = courseColor;
 
-    // 필드 pre-fill
+    // 필드 pre-fill (수업명은 "(강사) 수업명" 형태의 표시 제목이 아닌 원본 class_name 사용)
     document.getElementById('edit-date').value = dateStr;
-    document.getElementById('edit-class-name').value = currentEvent.title || '';
+    document.getElementById('edit-class-name').value =
+        stripInstructorPrefix(props.class_name || currentEvent.title, knownInstructorNames(props.instructor));
     document.getElementById('edit-instructor').value = (props.instructor || '').replace(/,/g, ', ');
     document.getElementById('edit-hours').value = props.hours || 8;
     document.getElementById('edit-start-time').value = startTime || '09:00';
+    document.getElementById('edit-end-time').value = endTime;
     document.getElementById('edit-is-holiday').checked = props.is_holiday || false;
 
     closeModal();
@@ -932,12 +1026,14 @@ async function submitEditEntry() {
     const date = document.getElementById('edit-date').value;
     const className = document.getElementById('edit-class-name').value.trim();
     const instructor = document.getElementById('edit-instructor').value.trim();
-    const hours = parseInt(document.getElementById('edit-hours').value) || 8;
+    const hours = parseFloat(document.getElementById('edit-hours').value) || 8;
     const startTime = document.getElementById('edit-start-time').value || '09:00';
+    const endTime = document.getElementById('edit-end-time').value || calcEndTime(startTime, hours);
     const isHoliday = document.getElementById('edit-is-holiday').checked;
 
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
     if (!className) { showToast('수업명을 입력해주세요.', 'error'); return; }
+    if (hours > 12) { showToast('수업시간은 12시간 이하로 입력해주세요.', 'error'); return; }
 
     try {
         const res = await fetch(`/api/courses/${courseId}/entries/${entryId}`, {
@@ -949,6 +1045,7 @@ async function submitEditEntry() {
                 instructor,
                 hours,
                 start_time: startTime,
+                end_time: endTime,
                 is_holiday: isHoliday,
             })
         });
@@ -957,6 +1054,7 @@ async function submitEditEntry() {
             showToast(data.message, 'success');
             closeEditModal();
             calendar.refetchEvents();
+            loadCourses();
         } else {
             showToast(data.error || '수정에 실패했습니다.', 'error');
         }

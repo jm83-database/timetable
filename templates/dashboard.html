@@ -211,7 +211,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">수업명 <span class="text-red-500">*</span></label>
-                <input type="text" id="add-class-name" maxlength="100"
+                <input type="text" id="add-class-name"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                        placeholder="예: AI기본의 이해 및 활용">
             </div>
@@ -221,17 +221,25 @@
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                        placeholder="예: 강명호">
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">수업시간</label>
-                    <input type="number" id="add-hours" value="8" min="1" max="12"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+            <div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">수업시간</label>
+                        <input type="number" id="add-hours" value="8" min="0.5" max="12" step="0.5"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">시작 시각</label>
+                        <input type="time" id="add-start-time" value="09:00"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">종료 시각</label>
+                        <input type="time" id="add-end-time" value="18:00"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">시작 시각</label>
-                    <input type="time" id="add-start-time" value="09:00"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
-                </div>
+                <p class="mt-1.5 text-xs text-gray-400">종료 시각을 직접 입력하면 수업시간이 분 단위로 계산됩니다. (점심시간 13:00~14:00 제외)</p>
             </div>
             <div class="flex items-center space-x-2">
                 <input type="checkbox" id="add-is-holiday" class="accent-primary w-4 h-4">
@@ -272,7 +280,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">수업명 <span class="text-red-500">*</span></label>
-                <input type="text" id="edit-class-name" maxlength="100"
+                <input type="text" id="edit-class-name"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
                        placeholder="예: AI기본의 이해 및 활용">
             </div>
@@ -282,17 +290,25 @@
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
                        placeholder="예: 강명호">
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">수업시간</label>
-                    <input type="number" id="edit-hours" value="8" min="1" max="12"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
+            <div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">수업시간</label>
+                        <input type="number" id="edit-hours" value="8" min="0.5" max="12" step="0.5"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">시작 시각</label>
+                        <input type="time" id="edit-start-time" value="09:00"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">종료 시각</label>
+                        <input type="time" id="edit-end-time" value="18:00"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">시작 시각</label>
-                    <input type="time" id="edit-start-time" value="09:00"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
-                </div>
+                <p class="mt-1.5 text-xs text-gray-400">종료 시각을 직접 입력하면 수업시간이 분 단위로 계산됩니다. (점심시간 13:00~14:00 제외)</p>
             </div>
             <div class="flex items-center space-x-2">
                 <input type="checkbox" id="edit-is-holiday" class="accent-blue-500 w-4 h-4">
@@ -417,6 +433,7 @@
                 <p class="text-sm text-gray-600 leading-relaxed">
                     캘린더에서 원하는 <strong>날짜를 클릭</strong>하거나 상단의 <strong>+ 수업 추가</strong> 버튼을 눌러
                     개별 수업을 추가할 수 있습니다. 과정, 수업명, 강사, 수업시간 등을 입력합니다.
+                    수업시간은 <strong>4.5</strong>처럼 소수로 입력하거나, <strong>종료 시각</strong>을 직접 입력하면 분 단위로 자동 계산됩니다 (예: 13:00~17:30 = 4시간 30분).
                 </p>
             </div>
             <div>
