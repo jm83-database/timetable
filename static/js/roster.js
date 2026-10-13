@@ -49,6 +49,11 @@ function formatKoDate(ymd) {
     return `${y}년 ${m}월 ${d}일 (${WEEKDAY_KO[date.getDay()]})`;
 }
 
+function formatKoMonth(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    return `${y}년 ${m}월`;
+}
+
 function employeeColor(name) {
     const emp = employees.find(e => e.name === name);
     return emp ? emp.color : '#6B7280';
@@ -94,9 +99,39 @@ function renderStatus(data) {
         el.textContent = '등록된 근무표가 없습니다.';
         return;
     }
-    const months = (data.months || []).map(m => m.replace('-', '년 ') + '월');
+    const counts = data.month_counts || {};
+    const rows = (data.months || []).map(ym => `
+        <li class="flex items-center justify-between py-1.5">
+            <span class="text-gray-700">${escapeHtml(formatKoMonth(ym))}
+                <span class="text-gray-400 ml-1">${counts[ym] || 0}건</span></span>
+            <button class="delete-month-btn text-gray-400 hover:text-red-500 transition-colors p-1"
+                    data-month="${escapeHtml(ym)}" title="${escapeHtml(formatKoMonth(ym))} 근무표 삭제">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+            </button>
+        </li>`).join('');
     el.innerHTML = `<p>총 <b>${data.entry_count}</b>건 · 직원 ${employees.length}명</p>
-        <p class="mt-1 text-gray-400">${escapeHtml(months.join(', '))}</p>`;
+        <ul class="mt-2 divide-y divide-gray-100">${rows}</ul>
+        <p class="mt-2 text-gray-400">휴지통을 누르면 그 달의 항목이 모두 삭제됩니다.</p>`;
+    el.querySelectorAll('.delete-month-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteRosterMonth(btn.dataset.month, counts[btn.dataset.month] || 0));
+    });
+}
+
+async function deleteRosterMonth(ym, count) {
+    const label = formatKoMonth(ym);
+    if (!confirm(`${label} 근무표 ${count}건을 모두 삭제합니다.\n(웹에서 추가·수정한 항목 포함, 되돌릴 수 없습니다)\n\n계속할까요?`)) return;
+    try {
+        const res = await fetch(`/api/roster/months/${encodeURIComponent(ym)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        showToast(data.message, 'success');
+        await refreshAll();
+    } catch (err) {
+        showToast(err.message || '삭제에 실패했습니다.', 'error');
+    }
 }
 
 // === 필터 ===

@@ -2,7 +2,9 @@
 직원근무표 라우트 (페이지 + /api/roster)
 """
 import os
+import re
 import logging
+from collections import Counter
 from flask import Blueprint, render_template, jsonify, request
 
 from config import Config
@@ -11,6 +13,8 @@ from models import ROSTER_CATEGORIES
 from utils.error_handlers import handle_errors
 
 logger = logging.getLogger(__name__)
+
+MONTH_RE = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
 
 roster_bp = Blueprint('roster', __name__)
 roster_api_bp = Blueprint('roster_api', __name__, url_prefix='/api/roster')
@@ -83,12 +87,13 @@ def list_employees():
     from services.calendar_service import build_employee_colors
     entries = get_roster_storage().get_entries()
     colors = build_employee_colors(entries)
-    months = sorted({e.get('date', '')[:7] for e in entries if e.get('date')})
+    month_counts = Counter(e.get('date', '')[:7] for e in entries if e.get('date'))
     return jsonify({
         "success": True,
         "employees": [{"name": n, "color": c} for n, c in colors.items()],
         "entry_count": len(entries),
-        "months": months,
+        "months": sorted(month_counts),
+        "month_counts": dict(month_counts),
         "category_colors": Config.ROSTER_CATEGORY_COLORS,
     })
 
@@ -189,3 +194,21 @@ def remove_entry(entry_id):
     if get_roster_storage().delete_entry(entry_id):
         return jsonify({"success": True, "message": "근무 항목이 삭제되었습니다."})
     return jsonify({"success": False, "error": "항목을 찾을 수 없습니다."}), 404
+
+
+@roster_api_bp.route('/months/<ym>', methods=['DELETE'])
+@handle_errors
+def remove_month(ym):
+    """해당 월(YYYY-MM)의 근무표 항목 전체 삭제 (업로드 단위인 시트=월 기준)"""
+    from services.roster_storage import get_roster_storage
+    if not MONTH_RE.match(ym):
+        raise ValueError("월 형식이 올바르지 않습니다. (YYYY-MM)")
+    removed = get_roster_storage().delete_month(ym)
+    if not removed:
+        return jsonify({"success": False, "error": "해당 월에 등록된 근무표가 없습니다."}), 404
+    year, month = ym.split('-')
+    return jsonify({
+        "success": True,
+        "removed": removed,
+        "message": f"{year}년 {int(month)}월 근무표 {removed}건을 삭제했습니다.",
+    })

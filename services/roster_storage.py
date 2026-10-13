@@ -79,6 +79,17 @@ class LocalJsonRosterStorage:
         logger.info(f"근무표 교체: {prefixes} (삭제 {removed}, 추가 {len(entries)})")
         return removed
 
+    def delete_month(self, prefix):
+        """YYYY-MM 월의 항목을 모두 삭제하고 삭제 건수 반환"""
+        data = self._load()
+        before = len(data.get('entries', []))
+        data['entries'] = [e for e in data.get('entries', []) if e.get('date', '')[:7] != prefix]
+        removed = before - len(data['entries'])
+        if removed:
+            self._save(data)
+        logger.info(f"근무표 월 삭제: {prefix} (삭제 {removed})")
+        return removed
+
     def get_uploads(self):
         return self._load().get('uploads', [])
 
@@ -139,15 +150,18 @@ class CosmosRosterStorage:
         query += " ORDER BY c.date"
         return self._query(query, params)
 
+    def delete_month(self, prefix):
+        """YYYY-MM 월의 항목을 모두 삭제하고 삭제 건수 반환"""
+        olds = self._query(
+            "SELECT c.id FROM c WHERE c.type = 'roster_entry' AND STARTSWITH(c.date, @p)",
+            [{"name": "@p", "value": prefix}])
+        for o in olds:
+            self.container.delete_item(item=o['id'], partition_key='roster_entry')
+        logger.info(f"근무표 월 삭제: {prefix} (삭제 {len(olds)})")
+        return len(olds)
+
     def replace_months(self, entries, months, file_name=''):
-        removed = 0
-        for prefix in _month_prefixes(months):
-            olds = self._query(
-                "SELECT c.id FROM c WHERE c.type = 'roster_entry' AND STARTSWITH(c.date, @p)",
-                [{"name": "@p", "value": prefix}])
-            for o in olds:
-                self.container.delete_item(item=o['id'], partition_key='roster_entry')
-            removed += len(olds)
+        removed = sum(self.delete_month(prefix) for prefix in _month_prefixes(months))
         for e in entries:
             doc = {"id": e.get('id') or _generate_id(), "type": "roster_entry",
                    **{k: v for k, v in e.items() if k != 'id'}}
