@@ -29,6 +29,7 @@ def test_sends_separately_and_only_once_on_each_due_day(tmp_path):
     assert run_reminder_cycle(courses, store, 'elixirr@elixirr.co.kr', 'token', now, send) == 0
     assert {call[1] for call in calls} == {'person@naver.com', 'teacher@gmail.com'}
     assert all('D-7' in call[2] and '2026-11-04' in call[3] for call in calls)
+    assert all('결과보고서' not in call[3] for call in calls)
     assert {item['status'] for item in store.deliveries('course', 'lesson')} == {'accepted'}
 
 
@@ -131,6 +132,9 @@ def test_short_term_cycle_sends_both_files_to_each_recipient_only_once(tmp_path,
         message = call['message']
         assert f'D-{offset}' in message['subject']
         assert '첨부된 결과보고서 견본과 양식' in message['body']['content']
+        assert '교육 종료 후 결과보고서 작성을 부탁드립니다.' in message['body']['content']
+        assert '우수 산출물(수강후기)을 5개 이상 포함' in message['body']['content']
+        assert 'Padlet에 올라온 수강후기가 5개 미만이라면, 올라온 내용을 최대한 많이 포함' in message['body']['content']
         assert message['attachments'] == reminder_attachments.load_attachments('short_term')
     store.save_assignment('course', 'lesson', [first['id'], second['id']], 'regular')
     assert run_reminder_cycle(courses, store, 'sender', 'token', due) == 0

@@ -78,7 +78,12 @@ def run_reminder_cycle(courses, storage, sender, token, now=None, send=send_grap
                 count += 1
                 continue
             if attachments:
-                body += '\n\n첨부된 결과보고서 견본과 양식을 확인해주세요.'
+                body += (
+                    '\n\n교육 종료 후 결과보고서 작성을 부탁드립니다.'
+                    '\n첨부된 결과보고서 견본과 양식을 참고해 주세요.'
+                    '\n결과보고서에는 우수 산출물(수강후기)을 5개 이상 포함해 주세요.'
+                    '\nPadlet에 올라온 수강후기가 5개 미만이라면, 올라온 내용을 최대한 많이 포함해 주세요.'
+                )
             try:
                 if attachments:
                     status = send(sender, token, contact['email'], subject, body,
