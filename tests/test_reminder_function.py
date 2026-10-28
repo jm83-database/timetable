@@ -38,3 +38,39 @@ def test_timer_binding_and_worker_wiring(monkeypatch):
     function.get_user_function()(None)
 
     assert calls == [([{'id': 'course'}], ('store', container), 'elixirr@elixirr.co.kr', 'graph-token')]
+
+
+def test_verification_reads_without_sending_or_writing(monkeypatch, caplog):
+    class FixedClock:
+        @staticmethod
+        def now(tz):
+            return datetime(2026, 10, 27, 20, 0, tzinfo=timezone.utc)
+
+    container = object()
+    calls = []
+    monkeypatch.setattr(function_app, 'datetime', FixedClock)
+    monkeypatch.setenv('REMINDER_VALIDATE_ONLY', 'true')
+    monkeypatch.setenv('AZURE_CLIENT_ID', 'identity-id')
+    monkeypatch.setenv('COSMOS_DB_ENDPOINT', 'https://example.documents.azure.com')
+    monkeypatch.setattr(function_app, 'ManagedIdentityCredential', lambda client_id: ('identity', client_id))
+    monkeypatch.setattr(function_app, 'CosmosClient', lambda endpoint, credential: SimpleNamespace(
+        get_database_client=lambda database: SimpleNamespace(get_container_client=lambda name: container)))
+    monkeypatch.setattr(function_app, 'CosmosStorage', lambda value: SimpleNamespace(
+        get_all_courses=lambda: [{'id': 'course'}]))
+    monkeypatch.setattr(function_app, 'CosmosReminderStorage', lambda value: SimpleNamespace(
+        contacts=lambda: [{'id': 'contact'}],
+        assignment=lambda course_id, entry_id: calls.append(('assignment', course_id, entry_id)),
+        deliveries=lambda course_id, entry_id: calls.append(('deliveries', course_id, entry_id))))
+
+    def reject_mail(*args, **kwargs):
+        raise AssertionError('Verification must not request a mail token or send')
+
+    monkeypatch.setattr(function_app, 'ClientSecretCredential', reject_mail)
+    monkeypatch.setattr(function_app, 'run_reminder_cycle', reject_mail)
+    monkeypatch.setattr(function_app.app, 'functions_bindings', {})
+    with caplog.at_level('INFO'):
+        function_app.app.get_functions()[0].get_user_function()(None)
+
+    assert calls == [('assignment', '__verification__', '__verification__'),
+                     ('deliveries', '__verification__', '__verification__')]
+    assert 'Reminder verification succeeded: 1 courses, 1 contacts' in caplog.text
