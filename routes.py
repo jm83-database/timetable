@@ -319,6 +319,11 @@ def delete_course(course_id):
     storage = get_storage()
     success = storage.delete_course(course_id)
     if success:
+        try:
+            from services.reminder_storage import get_reminder_storage
+            get_reminder_storage().delete_course_assignments(course_id)
+        except Exception:
+            logger.exception('과정의 리마인드 설정 정리 실패: %s', course_id)
         logger.info(f"과정 삭제: {course_id}")
         return jsonify({"success": True, "message": "과정이 삭제되었습니다."})
     return jsonify({"success": False, "error": "과정을 찾을 수 없습니다."}), 404
@@ -414,6 +419,11 @@ def delete_entry(course_id, entry_id):
     storage = get_storage()
     success = storage.delete_entry(course_id, entry_id)
     if success:
+        try:
+            from services.reminder_storage import get_reminder_storage
+            get_reminder_storage().delete_assignment(course_id, entry_id)
+        except Exception:
+            logger.exception('수업의 리마인드 설정 정리 실패: %s / %s', course_id, entry_id)
         logger.info(f"수업 일정 삭제: {course_id} / {entry_id}")
         return jsonify({"success": True, "message": "수업 일정이 삭제되었습니다."})
     return jsonify({"success": False, "error": "수업 일정을 찾을 수 없습니다."}), 404
@@ -456,6 +466,12 @@ def update_entry(course_id, entry_id):
     storage = get_storage()
     success = storage.update_entry(course_id, entry_id, updates)
     if success:
+        if is_holiday:
+            try:
+                from services.reminder_storage import get_reminder_storage
+                get_reminder_storage().delete_assignment(course_id, entry_id)
+            except Exception:
+                logger.exception('휴일의 리마인드 설정 정리 실패: %s / %s', course_id, entry_id)
         logger.info(f"수업 일정 수정: {course_id} / {entry_id} ({class_name})")
         return jsonify({"success": True, "message": f"'{class_name}' 수업이 수정되었습니다."})
     return jsonify({"success": False, "error": "수업 일정을 찾을 수 없습니다."}), 404

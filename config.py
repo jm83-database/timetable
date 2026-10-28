@@ -11,6 +11,11 @@ class Config:
     # 세션 쿠키 보안
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    AUTH_MODE = os.environ.get('TIMETABLE_AUTH_MODE', 'entra')
+    EMPLOYEE_TENANT_ID = os.environ.get('EMPLOYEE_TENANT_ID', '')
+    LOGIN_CLIENT_ID = os.environ.get('LOGIN_CLIENT_ID', '')
+    LOGIN_DOMAIN = os.environ.get('LOGIN_DOMAIN', 'elixirr.co.kr')
+    APP_ORIGIN = os.environ.get('APP_ORIGIN', '')
 
     # 파일 업로드
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'uploads')

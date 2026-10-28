@@ -661,6 +661,7 @@ function showEventModal(event) {
     const props = event.extendedProps;
     const deleteBtn = document.getElementById('modal-delete-btn');
     const editBtn = document.getElementById('modal-edit-btn');
+    const reminderBtn = document.getElementById('modal-reminder-btn');
 
     // 현재 이벤트 저장 (수정 모달에서 사용)
     currentEvent = event;
@@ -676,6 +677,9 @@ function showEventModal(event) {
     // 수정 버튼 표시/숨김 (entry_id 있고 공휴일이 아닐 때만)
     if (editBtn) {
         editBtn.classList.toggle('hidden', !props.entry_id || props.is_holiday);
+    }
+    if (reminderBtn) {
+        reminderBtn.classList.toggle('hidden', !props.entry_id || props.is_holiday);
     }
 
     // 공휴일인 경우

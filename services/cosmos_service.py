@@ -165,14 +165,17 @@ class LocalJsonStorage:
 class CosmosStorage:
     """Azure Cosmos DB 기반 저장소"""
 
-    def __init__(self):
-        from azure.cosmos import CosmosClient, PartitionKey
-        self.client = CosmosClient(Config.COSMOS_DB_ENDPOINT, Config.COSMOS_DB_KEY)
-        self.database = self.client.create_database_if_not_exists(id=Config.COSMOS_DATABASE_NAME)
-        self.container = self.database.create_container_if_not_exists(
-            id=Config.COSMOS_CONTAINER_NAME,
-            partition_key=PartitionKey(path="/type")
-        )
+    def __init__(self, container=None):
+        if container is None:
+            from azure.cosmos import CosmosClient, PartitionKey
+            self.client = CosmosClient(Config.COSMOS_DB_ENDPOINT, Config.COSMOS_DB_KEY)
+            self.database = self.client.create_database_if_not_exists(id=Config.COSMOS_DATABASE_NAME)
+            self.container = self.database.create_container_if_not_exists(
+                id=Config.COSMOS_CONTAINER_NAME,
+                partition_key=PartitionKey(path="/type")
+            )
+        else:
+            self.container = container
         logger.info("Azure Cosmos DB 저장소 초기화 완료")
 
     def _generate_id(self, doc_type):

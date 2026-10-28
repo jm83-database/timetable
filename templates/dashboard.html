@@ -29,6 +29,11 @@
                 <a href="/upload" class="text-primary hover:underline">시간표를 업로드</a>해주세요.
             </div>
             <div class="ml-auto flex items-center gap-2">
+                <button onclick="openContactsModal()"
+                        class="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                        title="리마인드 수신자 관리">
+                    수신자 관리
+                </button>
                 <button onclick="openAddModal()"
                         class="px-3 py-1.5 text-xs font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors"
                         title="수업 추가">
@@ -154,6 +159,10 @@
             </div>
         </div>
         <div id="modal-actions" class="px-6 py-3 bg-gray-50 flex justify-end space-x-2">
+            <button id="modal-reminder-btn" onclick="openReminderModal()"
+                    class="hidden px-3 py-1.5 text-xs font-medium text-primary border border-blue-300 rounded-lg hover:bg-blue-50">
+                알림 설정
+            </button>
             <button id="modal-edit-btn" onclick="openEditModal()"
                     class="hidden px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-white hover:bg-blue-500 border border-blue-300 rounded-lg transition-colors">
                 수업 수정
@@ -162,6 +171,48 @@
                     class="hidden px-3 py-1.5 text-xs font-medium text-red-600 hover:text-white hover:bg-red-500 border border-red-300 rounded-lg transition-colors">
                 수업 삭제
             </button>
+        </div>
+    </div>
+</div>
+
+<div id="contacts-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog" aria-modal="true" aria-labelledby="contacts-title">
+    <div class="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="px-6 py-4 bg-primary flex justify-between items-center">
+            <h3 id="contacts-title" class="text-lg font-bold text-white">수신자 관리</h3>
+            <button type="button" onclick="closeContactsModal()" class="text-white text-xl" aria-label="닫기">&times;</button>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-4">
+            <form id="contact-form" class="space-y-3">
+                <div>
+                    <label for="contact-name" class="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                    <input id="contact-name" required maxlength="100" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                </div>
+                <div>
+                    <label for="contact-email" class="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                    <input id="contact-email" type="email" required maxlength="254" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                </div>
+                <button class="px-3 py-2 text-sm text-white bg-primary rounded-md" type="submit">수신자 추가</button>
+            </form>
+            <div id="contacts-list" class="border-t border-gray-200 divide-y divide-gray-100" aria-live="polite"></div>
+        </div>
+    </div>
+</div>
+
+<div id="reminder-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog" aria-modal="true" aria-labelledby="reminder-title">
+    <div class="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="px-6 py-4 bg-primary flex justify-between items-center">
+            <h3 id="reminder-title" class="text-lg font-bold text-white">알림 수신자</h3>
+            <button type="button" onclick="closeReminderModal()" class="text-white text-xl" aria-label="닫기">&times;</button>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto">
+            <p id="reminder-class" class="text-sm font-semibold text-gray-800 break-words"></p>
+            <p class="text-xs text-gray-500 mt-1">7일 전 · 3일 전, 오전 9시</p>
+            <div id="reminder-contacts" class="mt-4 divide-y divide-gray-100" aria-live="polite"></div>
+            <div id="reminder-history" class="mt-4 border-t border-gray-200 pt-3 text-xs text-gray-600" aria-live="polite"></div>
+        </div>
+        <div class="px-6 py-3 bg-gray-50 flex justify-end gap-2">
+            <button type="button" onclick="closeReminderModal()" class="px-3 py-2 text-sm text-gray-600">취소</button>
+            <button id="reminder-save" type="button" onclick="saveReminderRecipients()" class="px-3 py-2 text-sm text-white bg-primary rounded-md">저장</button>
         </div>
     </div>
 </div>
@@ -506,4 +557,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reminders.js') }}"></script>
 {% endblock %}

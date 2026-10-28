@@ -1,0 +1,13 @@
+.env
+local.settings.json
+.git/
+.github/
+.vscode/
+.venv/
+venv/
+data/
+logs/
+tests/
+*.xlsx
+*.pyc
+__pycache__/

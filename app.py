@@ -10,12 +10,16 @@ from flask import Flask
 from config import Config
 from routes import main_bp, api_bp
 from routes_roster import roster_bp, roster_api_bp
+from routes_reminders import reminder_bp
+from services.auth_service import require_company_user
 
 
 def create_app():
     """Flask 애플리케이션 팩토리"""
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config['WEBSITE_SITE_NAME'] = os.environ.get('WEBSITE_SITE_NAME', '')
+    app.before_request(require_company_user)
 
     # 필수 디렉토리 생성
     os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
@@ -27,6 +31,7 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(roster_bp)
     app.register_blueprint(roster_api_bp)
+    app.register_blueprint(reminder_bp)
 
     # 보안 헤더
     @app.after_request
