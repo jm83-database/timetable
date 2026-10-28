@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 확인</title>
+    <style>
+        body { margin: 0; background: #f9fafb; color: #1f2937; font: 16px/1.6 sans-serif; }
+        main { max-width: 32rem; margin: 12vh auto 0; padding: 2rem; }
+        h1 { margin: 0; font-size: 1.5rem; }
+        a { color: #2563a6; font-weight: 600; }
+    </style>
+</head>
+<body data-auth-recovery>
+    <main>
+        <h1>로그인 확인</h1>
+        <p id="auth-status" role="status">로그인 상태를 확인하고 있습니다.</p>
+        <a id="auth-login" href="/.auth/login/aad">다시 로그인</a>
+    </main>
+    <script>
+        (async function () {
+            const destination = new URL(window.location.href);
+            const stage = destination.searchParams.get('_tt_auth_recovery');
+            destination.searchParams.delete('_tt_auth_recovery');
+
+            const loginDestination = new URL(destination);
+            loginDestination.searchParams.set('_tt_auth_recovery', 'login');
+            const login = new URL('/.auth/login/aad', window.location.origin);
+            login.searchParams.set('post_login_redirect_uri', loginDestination.pathname + loginDestination.search);
+            document.getElementById('auth-login').href = login.pathname + login.search;
+
+            if (stage === 'login') {
+                document.getElementById('auth-status').textContent = '로그인 상태를 확인하지 못했습니다. 다시 로그인해 주세요.';
+                return;
+            }
+            if (stage !== 'refresh') {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 10000);
+                try {
+                    const response = await fetch('/.auth/refresh', {
+                        credentials: 'same-origin', cache: 'no-store', redirect: 'manual', signal: controller.signal
+                    });
+                    if (response.ok) {
+                        destination.searchParams.set('_tt_auth_recovery', 'refresh');
+                        window.location.replace(destination.pathname + destination.search + destination.hash);
+                        return;
+                    }
+                } catch (error) {
+                } finally {
+                    clearTimeout(timeout);
+                }
+            }
+            window.location.replace(login.pathname + login.search);
+        }());
+    </script>
+</body>
+</html>

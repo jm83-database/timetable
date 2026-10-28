@@ -149,6 +149,7 @@ python -m pytest tests/
 - 발신자는 `elixirr@elixirr.co.kr`이며 수신자별로 각각 전송합니다. 휴일에는 발송하지 않습니다. 한국 시간 오전 9시 이후 시간마다 확인하므로 설정 또는 일시 장애 복구가 늦으면 같은 날 늦게 발송될 수 있습니다.
 - 발송 이력의 `발송 접수`는 Microsoft Graph가 요청을 수락했다는 뜻이며 실제 전달을 보장하지 않습니다. `실패`는 요청 거절 또는 첨부파일 준비 실패로 같은 날 한 시간 후 다시 시도하고, `확인 필요`는 전송 결과가 불확실하므로 중복 방지를 위해 자동 재발송하지 않습니다.
 - 로컬에서만 `TIMETABLE_AUTH_MODE=local`을 사용합니다. Azure에서는 로컬 모드가 거부되며, 인증 설정이 없으면 서비스는 닫힌 상태로 응답합니다. 로컬 미리보기는 `COSMOS_DB_ENDPOINT`와 `COSMOS_DB_KEY`를 비워 운영 데이터와 분리하세요.
+- 로그인 토큰이 만료되면 페이지는 App Service의 `/.auth/refresh`를 한 번 시도하고, 복구되지 않으면 다시 로그인합니다. 열린 화면의 API 인증 만료는 재로그인을 안내하며 저장 요청을 자동 재전송하지 않습니다. 운영 환경에서 토큰 저장소, `offline_access` 및 로그인 앱 자격 증명이 유효한지, 갱신 후 ID 토큰이 유효한지 확인하세요. 갱신이 불가능하거나 조직 정책이 요구하면 재인증이 필요합니다.
 - [infra/provision.bicep](infra/provision.bicep)는 전용 리소스 그룹에 Linux Consumption `Y1`, Python 3.12 함수와 Storage, Key Vault 및 모니터링을 정의합니다. [infra/cosmos-role.bicep](infra/cosmos-role.bicep)는 기존 Cosmos DB 컨테이너 범위에 데이터 접근 권한을 부여합니다. 함수는 기본적으로 비활성화되므로 인프라를 다시 배포한 뒤에는 활성 상태를 확인해야 합니다. Linux Consumption은 2028년 9월 30일 종료 예정입니다. [infra/web-auth.bicep](infra/web-auth.bicep)는 현재 앱 설정을 보안 입력으로 받아 보존하면서 인증 설정을 추가합니다. 적용 전 백업과 what-if 검토가 필요합니다.
 - `REMINDER_VALIDATE_ONLY=true`일 때 워커는 Cosmos DB 읽기만 확인하고 메일 전송과 발송 이력 쓰기를 건너뜁니다. 점검 후에는 이 설정을 `false`로 바꿔야 정상 알림이 발송됩니다.
 - B 테넌트에 별도의 로그인 앱과 메일 앱 등록이 필요합니다. 로그인 앱은 `https://elixirrtimetable.azurewebsites.net/.auth/login/aad/callback` 리디렉션 URI, App Service 하이브리드 로그인용 ID 토큰 발급, ID 토큰의 `acct` 선택적 클레임이 필요합니다. 로그인은 B 테넌트의 `acct=0` 구성원이면서 `@elixirr.co.kr` 사용자 이름인 경우만 허용합니다.

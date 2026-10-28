@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -27,6 +28,12 @@
     {% block head %}{% endblock %}
 </head>
 <body class="bg-gray-50 min-h-screen">
+    <aside id="auth-session-notice" role="alert" hidden class="sticky top-0 z-50 bg-amber-50 border-b border-amber-300 text-amber-900">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+            <span>로그인 상태가 만료되었습니다. 다시 로그인한 뒤 작업 내용을 확인해 주세요.</span>
+            <a id="auth-session-login" class="font-semibold underline" href="/.auth/login/aad">다시 로그인</a>
+        </div>
+    </aside>
     <!-- Navigation -->
     <nav class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -4,7 +4,7 @@ import uuid
 from urllib.parse import urlsplit
 
 import jwt
-from flask import abort, current_app, request
+from flask import abort, current_app, jsonify, make_response, render_template, request
 from jwt import PyJWKClient
 from jwt.exceptions import PyJWKClientConnectionError
 
@@ -17,6 +17,17 @@ def _origin(value):
     if parsed.scheme not in ('http', 'https') or not parsed.netloc:
         return ''
     return f'{parsed.scheme}://{parsed.netloc}'.lower()
+
+
+def _authentication_required():
+    if request.path.startswith('/api/'):
+        response = make_response(jsonify(error='로그인이 필요합니다.', code='authentication_required'), 401)
+    elif request.method == 'GET' and request.blueprint in ('main', 'roster'):
+        response = make_response(render_template('auth_recovery.html'), 401)
+    else:
+        abort(401)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 def require_company_user():
@@ -41,8 +52,10 @@ def require_company_user():
         abort(503)
 
     token = request.headers.get('X-MS-TOKEN-AAD-ID-TOKEN', '')
-    if not token or len(token) > 32768:
-        abort(401)
+    if not token:
+        return _authentication_required()
+    if len(token) > 32768:
+        return _authentication_required()
     issuer = f'https://login.microsoftonline.com/{tenant}/v2.0'
     try:
         jwks = current_app.extensions.setdefault(
@@ -55,7 +68,7 @@ def require_company_user():
     except PyJWKClientConnectionError:
         abort(503)
     except (jwt.PyJWTError, ValueError, TypeError, KeyError):
-        abort(401)
+        return _authentication_required()
 
     username = claims.get('preferred_username')
     if (not isinstance(claims['tid'], str) or claims['tid'].lower() != tenant
