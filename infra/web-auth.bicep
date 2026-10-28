@@ -6,6 +6,10 @@ param employeeTenantId string
 param loginClientId string
 
 @secure()
+@description('Current application settings captured immediately before deployment.')
+param existingAppSettings object
+
+@secure()
 @description('Client secret for the dedicated employee sign-in application.')
 param loginClientSecret string
 
@@ -16,7 +20,7 @@ resource web 'Microsoft.Web/sites@2024-04-01' existing = {
 resource settings 'Microsoft.Web/sites/config@2024-04-01' = {
   parent: web
   name: 'appsettings'
-  properties: union(list('${web.id}/config/appsettings', '2024-04-01').properties, {
+  properties: union(existingAppSettings, {
     TIMETABLE_AUTH_MODE: 'entra'
     EMPLOYEE_TENANT_ID: employeeTenantId
     LOGIN_CLIENT_ID: loginClientId
