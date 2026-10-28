@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 import requests
 
+from services.reminder_attachments import load_attachments
 from services.reminder_schedule import due_classes
 
 
@@ -27,13 +28,15 @@ def message_for(course, entry, offset):
     return subject, body
 
 
-def send_graph_mail(sender, token, address, subject, body):
+def send_graph_mail(sender, token, address, subject, body, attachments=None):
+    message = {'subject': subject, 'body': {'contentType': 'Text', 'content': body},
+               'toRecipients': [{'emailAddress': {'address': address}}]}
+    if attachments:
+        message['attachments'] = attachments
     response = requests.post(
         f'https://graph.microsoft.com/v1.0/users/{quote(sender, safe="")}/sendMail',
         headers={'Authorization': f'Bearer {token}'},
-        json={'message': {'subject': subject, 'body': {'contentType': 'Text', 'content': body},
-                          'toRecipients': [{'emailAddress': {'address': address}}]},
-              'saveToSentItems': True},
+        json={'message': message, 'saveToSentItems': True},
         timeout=(5, 15),
     )
     if response.status_code == 202:
@@ -54,7 +57,9 @@ def run_reminder_cycle(courses, storage, sender, token, now=None, send=send_grap
     contacts = {contact['id']: contact for contact in storage.contacts()}
     count = 0
     for course, entry, offset in due_classes(courses, local_now.date()):
-        for contact_id in storage.assignment(course['id'], entry['id'])['recipients']:
+        assignment = storage.assignment(course['id'], entry['id'])
+        attachments = None
+        for contact_id in assignment['recipients']:
             contact = contacts.get(contact_id)
             if not contact:
                 logger.error('Reminder contact is missing for entry %s', entry['id'])
@@ -65,7 +70,21 @@ def run_reminder_cycle(courses, storage, sender, token, now=None, send=send_grap
                 continue
             subject, body = message_for(course, entry, offset)
             try:
-                status = send(sender, token, contact['email'], subject, body)
+                if attachments is None:
+                    attachments = load_attachments(assignment['education_type'])
+            except (OSError, ValueError):
+                logger.exception('Reminder attachment preparation failed: %s', delivery['id'])
+                storage.finish_delivery(delivery, 'failed')
+                count += 1
+                continue
+            if attachments:
+                body += '\n\n첨부된 결과보고서 견본과 양식을 확인해주세요.'
+            try:
+                if attachments:
+                    status = send(sender, token, contact['email'], subject, body,
+                                  attachments=attachments)
+                else:
+                    status = send(sender, token, contact['email'], subject, body)
             except Exception:
                 logger.exception('Reminder delivery outcome is uncertain: %s', delivery['id'])
                 status = 'uncertain'

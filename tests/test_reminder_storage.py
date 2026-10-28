@@ -17,6 +17,32 @@ def test_contacts_are_reusable_and_assignments_are_per_class(tmp_path):
     assert reopened.assignment('course-b', 'entry-a')['recipients'] == []
 
 
+def test_education_type_persists_per_class_and_legacy_assignments_default_to_regular(tmp_path):
+    store = LocalReminderStorage(str(tmp_path / 'reminders.json'))
+    contact = store.add_contact('담당자', 'person@naver.com')
+    legacy = store.assignment('course', 'legacy')
+    del legacy['education_type']
+    legacy['recipients'] = [contact['id']]
+    store._put(legacy)
+    store.save_assignment('course', 'short', [contact['id']], 'short_term')
+
+    reopened = LocalReminderStorage(store.path)
+    assert reopened.assignment('course', 'legacy')['education_type'] == 'regular'
+    assert reopened.assignment('course', 'new')['education_type'] == 'regular'
+    assert reopened.assignment('course', 'short')['education_type'] == 'short_term'
+    assert reopened.save_assignment('course', 'short', [])['education_type'] == 'short_term'
+    assert reopened.save_assignment('course', 'short', [], 'regular')['education_type'] == 'regular'
+
+
+@pytest.mark.parametrize('education_type', ['unknown', '', [], {}, 1, True])
+def test_rejects_invalid_education_type_without_changing_assignment(tmp_path, education_type):
+    store = LocalReminderStorage(str(tmp_path / 'reminders.json'))
+    store.save_assignment('course', 'entry', [], 'short_term')
+    with pytest.raises(ValueError, match='교육 유형'):
+        store.save_assignment('course', 'entry', [], education_type)
+    assert store.assignment('course', 'entry')['education_type'] == 'short_term'
+
+
 def test_rejects_duplicate_and_unknown_contacts_and_prevents_orphans(tmp_path):
     store = LocalReminderStorage(str(tmp_path / 'reminders.json'))
     contact = store.add_contact('담당자', 'person@naver.com')

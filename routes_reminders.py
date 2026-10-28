@@ -4,6 +4,7 @@ from email_validator import EmailNotValidError, validate_email
 from flask import Blueprint, jsonify, request
 
 from services.cosmos_service import get_storage
+from services.reminder_attachments import EDUCATION_TYPES
 from services.reminder_storage import get_reminder_storage
 
 
@@ -64,17 +65,26 @@ def assignment(course_id, entry_id):
     storage = get_reminder_storage()
     if request.method == 'GET':
         deliveries = storage.deliveries(course_id, entry_id)
-        return jsonify({'success': True, 'recipients': storage.assignment(course_id, entry_id)['recipients'],
+        saved = storage.assignment(course_id, entry_id)
+        return jsonify({'success': True, 'recipients': saved['recipients'],
+                        'education_type': saved['education_type'],
                         'deliveries': [{key: item[key] for key in ('class_date', 'offset', 'contact_id', 'status', 'attempted_at')}
                                        for item in deliveries]})
 
     data = request.get_json(silent=True)
-    recipients = data.get('recipients') if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'error': '수신자 목록을 확인해주세요.'}), 400
+    recipients = data.get('recipients')
     if (not isinstance(recipients, list) or len(recipients) > 100
             or any(not isinstance(item, str) or len(item) > 80 for item in recipients)):
         return jsonify({'success': False, 'error': '수신자 목록을 확인해주세요.'}), 400
+    education_type = data.get('education_type')
+    if 'education_type' in data and (
+            not isinstance(education_type, str) or education_type not in EDUCATION_TYPES):
+        return jsonify({'success': False, 'error': '교육 유형을 확인해주세요.'}), 400
     try:
-        result = storage.save_assignment(course_id, entry_id, recipients)
+        result = storage.save_assignment(course_id, entry_id, recipients, education_type)
     except ValueError as error:
         return jsonify({'success': False, 'error': str(error)}), 400
-    return jsonify({'success': True, 'recipients': result['recipients']})
+    return jsonify({'success': True, 'recipients': result['recipients'],
+                    'education_type': result['education_type']})

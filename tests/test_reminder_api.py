@@ -36,6 +36,42 @@ def test_external_contacts_and_class_assignments(client):
     assert client.delete('/api/reminders/contacts/' + contact_id).status_code == 200
 
 
+def test_education_type_round_trip_and_compatibility(client):
+    path = '/api/reminders/courses/course/entries/lesson'
+    assert client.get(path).json['education_type'] == 'regular'
+    response = client.put(path, json={'recipients': [], 'education_type': 'short_term'})
+    assert response.status_code == 200
+    assert response.json['education_type'] == 'short_term'
+    assert client.get(path).json['education_type'] == 'short_term'
+    assert client.put(path, json={'recipients': []}).json['education_type'] == 'short_term'
+    response = client.put(path, json={'recipients': [], 'education_type': 'regular'})
+    assert response.json['education_type'] == 'regular'
+    assert client.get(path).json['education_type'] == 'regular'
+
+
+@pytest.mark.parametrize('education_type', ['unknown', '', None, [], {}, 1, True])
+def test_rejects_invalid_education_type(client, education_type):
+    path = '/api/reminders/courses/course/entries/lesson'
+    client.put(path, json={'recipients': [], 'education_type': 'short_term'})
+    response = client.put(path, json={'recipients': [], 'education_type': education_type})
+    assert response.status_code == 400
+    assert response.json['error'] == '교육 유형을 확인해주세요.'
+    assert client.get(path).json['education_type'] == 'short_term'
+
+
+def test_dashboard_has_education_selector_and_mail_help(client):
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'id="reminder-education-type"' in html
+    assert 'value="regular"' in html
+    assert 'value="short_term"' in html
+    help_html = html.split('id="help-modal"', 1)[1]
+    for text in ('메일 알림 설정 및 확인', '수신자 관리', '정기교육형', '단기교육형',
+                 '결과보고서 견본.pdf', '결과보고서_양식.docx',
+                 '7일 전·3일 전', '발송 접수', '실패', '확인 필요'):
+        assert text in help_html
+
 def test_rejects_invalid_input_and_unknown_or_holiday_entries(client):
     assert client.post('/api/reminders/contacts', json={'name': 'x', 'email': 'not-an-email'}).status_code == 400
     assert client.post('/api/reminders/contacts', json=[]).status_code == 400

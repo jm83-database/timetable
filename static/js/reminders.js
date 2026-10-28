@@ -82,6 +82,10 @@ async function openReminderModal() {
     const list = document.getElementById('reminder-contacts');
     const history = document.getElementById('reminder-history');
     const save = document.getElementById('reminder-save');
+    const educationType = document.getElementById('reminder-education-type');
+    educationType.value = 'regular';
+    educationType.disabled = true;
+    updateReminderAttachments();
     list.textContent = '불러오는 중...';
     history.replaceChildren();
     save.disabled = true;
@@ -91,6 +95,9 @@ async function openReminderModal() {
         const [contactData, assignment] = await Promise.all([
             reminderRequest('/api/reminders/contacts'), reminderRequest(reminderPath),
         ]);
+        educationType.value = assignment.education_type;
+        updateReminderAttachments();
+        educationType.disabled = false;
         list.replaceChildren();
         if (!contactData.contacts.length) list.textContent = '등록된 수신자가 없습니다.';
         contactData.contacts.forEach(contact => {
@@ -133,17 +140,26 @@ function closeReminderModal() {
     document.getElementById('reminder-modal').classList.add('hidden');
 }
 
+function updateReminderAttachments() {
+    const shortTerm = document.getElementById('reminder-education-type').value === 'short_term';
+    document.getElementById('reminder-no-attachments').classList.toggle('hidden', shortTerm);
+    document.getElementById('reminder-attachment-files').classList.toggle('hidden', !shortTerm);
+}
+
+document.getElementById('reminder-education-type').addEventListener('change', updateReminderAttachments);
+
 async function saveReminderRecipients() {
     const recipients = Array.from(document.querySelectorAll('#reminder-contacts input:checked'), input => input.value);
+    const educationType = document.getElementById('reminder-education-type').value;
     const button = document.getElementById('reminder-save');
     button.disabled = true;
     try {
         await reminderRequest(reminderPath, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipients }),
+            body: JSON.stringify({ recipients, education_type: educationType }),
         });
         closeReminderModal();
-        showToast('알림 수신자를 저장했습니다.', 'success');
+        showToast('메일 알림 설정을 저장했습니다.', 'success');
     } catch (error) { showToast(error.message, 'error'); }
     finally { button.disabled = false; }
 }

@@ -131,6 +131,7 @@ jobs:
           python -m pip install -r requirements.txt --target "$package_dir/.python_packages/lib/site-packages"
           cp function_app.py config.py host.json "$package_dir/"
           cp services/*.py "$package_dir/services/"
+          cp -R services/attachments "$package_dir/services/"
           cd "$package_dir"
           zip -q -r "$RUNNER_TEMP/reminder-package.zip" .
       - uses: azure/login@v2

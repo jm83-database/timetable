@@ -7,6 +7,7 @@ import threading
 from datetime import datetime, timedelta
 
 from config import Config
+from services.reminder_attachments import EDUCATION_TYPES
 
 
 _storage = None
@@ -60,17 +61,24 @@ class ReminderStorage:
 
     def assignment(self, course_id, entry_id):
         key = _key('assignment_', course_id, entry_id)
-        return self._get('reminder_assignment', key) or {
+        assignment = self._get('reminder_assignment', key) or {
             'id': key, 'type': 'reminder_assignment',
             'course_id': course_id, 'entry_id': entry_id, 'recipients': [],
         }
+        assignment.setdefault('education_type', 'regular')
+        return assignment
 
-    def save_assignment(self, course_id, entry_id, recipients):
+    def save_assignment(self, course_id, entry_id, recipients, education_type=None):
         contact_ids = {contact['id'] for contact in self.contacts()}
         if not set(recipients).issubset(contact_ids):
             raise ValueError('등록되지 않은 수신자가 있습니다.')
         assignment = self.assignment(course_id, entry_id)
+        if education_type is None:
+            education_type = assignment['education_type']
+        if not isinstance(education_type, str) or education_type not in EDUCATION_TYPES:
+            raise ValueError('교육 유형을 확인해주세요.')
         assignment['recipients'] = list(dict.fromkeys(recipients))
+        assignment['education_type'] = education_type
         self._put(assignment)
         return assignment
 
