@@ -1,0 +1,4 @@
+name: timetable-reminder
+infra:
+  provider: bicep
+  module: provision

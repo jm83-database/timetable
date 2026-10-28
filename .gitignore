@@ -27,6 +27,7 @@ local.settings.*.json
 *.key
 *.local.bicepparam
 *.local.parameters.json
+/.azure/
 
 # Data
 data/

@@ -9,6 +9,9 @@ param mailClientId string
 @description('Existing timetable Cosmos DB account. It is not modified.')
 param cosmosAccountName string = 'timetable-dashboard'
 
+@description('Resource group containing the existing timetable Cosmos DB account.')
+param cosmosResourceGroupName string = 'Microsoft-Academy'
+
 @description('Start the timer only after mailbox scoping and end-to-end testing.')
 param enableReminder bool = false
 
@@ -22,6 +25,7 @@ var secretsUserRole = subscriptionResourceId('Microsoft.Authorization/roleDefini
 
 resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-11-15' existing = {
   name: cosmosAccountName
+  scope: resourceGroup(cosmosResourceGroupName)
 }
 
 resource workerIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -93,13 +97,12 @@ resource vaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-resource cosmosRole 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-11-15' = {
-  parent: cosmos
-  name: guid(cosmos.id, workerIdentity.id, 'timetable-reminder-data')
-  properties: {
+module cosmosRole './cosmos-role.bicep' = {
+  scope: resourceGroup(cosmosResourceGroupName)
+  params: {
+    accountName: cosmosAccountName
+    identityResourceId: workerIdentity.id
     principalId: workerIdentity.properties.principalId
-    roleDefinitionId: '${cosmos.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
-    scope: cosmos.id
   }
 }
 
@@ -129,8 +132,8 @@ resource plan 'Microsoft.Web/serverfarms@2024-04-01' = {
   location: location
   kind: 'functionapp'
   sku: {
-    name: 'FC1'
-    tier: 'FlexConsumption'
+    name: 'Y1'
+    tier: 'Dynamic'
   }
   properties: {
     reserved: true
@@ -141,6 +144,9 @@ resource worker 'Microsoft.Web/sites@2024-04-01' = {
   name: 'azfn${token}'
   location: location
   kind: 'functionapp,linux'
+  tags: {
+    app: 'timetable-reminder'
+  }
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -154,11 +160,16 @@ resource worker 'Microsoft.Web/sites@2024-04-01' = {
     siteConfig: {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
+      linuxFxVersion: 'Python|3.12'
       appSettings: [
+        { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
+        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
         { name: 'AzureWebJobsStorage__accountName', value: storage.name }
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
         { name: 'AzureWebJobsStorage__clientId', value: workerIdentity.properties.clientId }
         { name: 'AZURE_CLIENT_ID', value: workerIdentity.properties.clientId }
+        { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '${storage.properties.primaryEndpoints.blob}${deploymentContainer.name}/current.zip' }
+        { name: 'WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID', value: workerIdentity.id }
         { name: 'COSMOS_DB_ENDPOINT', value: cosmos.properties.documentEndpoint }
         { name: 'MAIL_TENANT_ID', value: employeeTenantId }
         { name: 'MAIL_CLIENT_ID', value: mailClientId }
@@ -166,26 +177,6 @@ resource worker 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: insights.properties.ConnectionString }
         { name: 'AzureWebJobs.reminder_timer.Disabled', value: string(!enableReminder) }
       ]
-    }
-    functionAppConfig: {
-      deployment: {
-        storage: {
-          type: 'blobContainer'
-          value: '${storage.properties.primaryEndpoints.blob}${deploymentContainer.name}'
-          authentication: {
-            type: 'UserAssignedIdentity'
-            userAssignedIdentityResourceId: workerIdentity.id
-          }
-        }
-      }
-      runtime: {
-        name: 'python'
-        version: '3.13'
-      }
-      scaleAndConcurrency: {
-        instanceMemoryMB: 2048
-        maximumInstanceCount: 40
-      }
     }
   }
   dependsOn: [
@@ -198,3 +189,5 @@ resource worker 'Microsoft.Web/sites@2024-04-01' = {
 output functionName string = worker.name
 output keyVaultName string = vault.name
 output workerPrincipalId string = workerIdentity.properties.principalId
+output storageAccountName string = storage.name
+output packageContainerName string = deploymentContainer.name
