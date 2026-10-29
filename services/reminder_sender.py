@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 KOREA_TIME = timezone(timedelta(hours=9))
 
 
+def _location_label(entry):
+    if entry.get('location_type', 'online') == 'online':
+        return '온라인'
+    return entry.get('location') or '미정'
+
+
 def message_for(course, entry, offset):
     subject = f"[수업 준비 안내 D-{offset}] {course.get('name', '')} - {entry.get('class_name', '')}"
     body = '\n'.join([
@@ -22,6 +28,7 @@ def message_for(course, entry, offset):
         f"수업: {entry.get('class_name', '')}",
         f"날짜: {entry.get('date', '')}",
         f"시간: {entry.get('start_time', '')} ~ {entry.get('end_time', '')}",
+        f"장소: {_location_label(entry)}",
         f"강사: {entry.get('instructor') or '미정'}", '',
         '수업 준비를 부탁드립니다.',
     ])

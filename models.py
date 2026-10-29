@@ -15,6 +15,8 @@ class ClassEntry:
     start_time: str = "09:00"
     end_time: str = "18:00"
     is_holiday: bool = False
+    location_type: str = "online"   # online | offline
+    location: str = ""              # 오프라인 기관명 또는 상세 주소
     id: str = ""               # 개별 엔트리 식별자
 
     def to_dict(self):
@@ -26,6 +28,8 @@ class ClassEntry:
             "start_time": self.start_time,
             "end_time": self.end_time,
             "is_holiday": self.is_holiday,
+            "location_type": self.location_type,
+            "location": self.location,
         }
         if self.id:
             d["id"] = self.id

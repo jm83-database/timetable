@@ -176,6 +176,31 @@ function bindClassTimeSync(prefix) {
 const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
 // FullCalendar 마커 Date는 로컬 날짜/시각이 UTC 필드에 담겨 있음
+function bindLocationToggle(prefix) {
+    document.querySelectorAll(`input[name="${prefix}-location-type"]`).forEach(radio => {
+        radio.addEventListener('change', () => setLocationType(prefix, radio.value));
+    });
+}
+
+function setLocationType(prefix, type) {
+    const input = document.getElementById(`${prefix}-location`);
+    input.classList.toggle('hidden', type !== 'offline');
+    if (type !== 'offline') input.value = '';
+}
+
+function setLocationFields(prefix, type, text) {
+    const value = type === 'offline' ? 'offline' : 'online';
+    document.querySelector(`input[name="${prefix}-location-type"][value="${value}"]`).checked = true;
+    document.getElementById(`${prefix}-location`).value = value === 'offline' ? (text || '') : '';
+    setLocationType(prefix, value);
+}
+
+function readLocationFields(prefix) {
+    const type = document.querySelector(`input[name="${prefix}-location-type"]:checked`).value;
+    const location = type === 'offline' ? document.getElementById(`${prefix}-location`).value.trim() : '';
+    return { location_type: type, location };
+}
+
 function markerYmd(d) {
     const m = String(d.getUTCMonth() + 1).padStart(2, '0');
     const day = String(d.getUTCDate()).padStart(2, '0');
@@ -297,6 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCourses();
     bindClassTimeSync('add');
     bindClassTimeSync('edit');
+    bindLocationToggle('add');
+    bindLocationToggle('edit');
 });
 
 function initCalendar() {
@@ -693,6 +720,7 @@ function showEventModal(event) {
         const dateStr = start.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
         document.getElementById('modal-date').textContent = dateStr;
         document.getElementById('modal-time').textContent = '휴일 (수업 없음)';
+        document.getElementById('modal-location-row').classList.add('hidden');
 
         modal.classList.remove('hidden');
         return;
@@ -712,6 +740,9 @@ function showEventModal(event) {
     const startTime = start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
     const endTime = event.end ? event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
     document.getElementById('modal-time').textContent = `${startTime} ~ ${endTime} (${formatHoursLong(hours)})`;
+    document.getElementById('modal-location-row').classList.remove('hidden');
+    document.getElementById('modal-location').textContent =
+        props.location_type === 'offline' ? (props.location || '미정') : '온라인';
 
     modal.classList.remove('hidden');
 }
@@ -792,6 +823,7 @@ function openAddModal(dateStr) {
     document.getElementById('add-start-time').value = '09:00';
     document.getElementById('add-end-time').value = calcEndTime('09:00', 8);
     document.getElementById('add-is-holiday').checked = false;
+    setLocationFields('add', 'online');
 
     modal.classList.remove('hidden');
 }
@@ -862,6 +894,11 @@ async function submitAddEntry() {
     const startTime = document.getElementById('add-start-time').value || '09:00';
     const endTime = document.getElementById('add-end-time').value || calcEndTime(startTime, hours);
     const isHoliday = document.getElementById('add-is-holiday').checked;
+    const locationFields = readLocationFields('add');
+    if (locationFields.location_type === 'offline' && !locationFields.location) {
+        showToast('오프라인 수업은 장소(기관명 또는 주소)를 입력해주세요.', 'error');
+        return;
+    }
 
     // 클라이언트 검증
     if (!courseId) { showToast('과정을 선택해주세요.', 'error'); return; }
@@ -911,6 +948,7 @@ async function submitAddEntry() {
                 start_time: startTime,
                 end_time: endTime,
                 is_holiday: isHoliday,
+                ...locationFields,
             })
         });
         const data = await res.json();
@@ -1008,6 +1046,7 @@ function openEditModal() {
     document.getElementById('edit-start-time').value = startTime || '09:00';
     document.getElementById('edit-end-time').value = endTime;
     document.getElementById('edit-is-holiday').checked = props.is_holiday || false;
+    setLocationFields('edit', props.location_type || 'online', props.location);
 
     closeModal();
     document.getElementById('edit-event-modal').classList.remove('hidden');
@@ -1034,6 +1073,11 @@ async function submitEditEntry() {
     const startTime = document.getElementById('edit-start-time').value || '09:00';
     const endTime = document.getElementById('edit-end-time').value || calcEndTime(startTime, hours);
     const isHoliday = document.getElementById('edit-is-holiday').checked;
+    const locationFields = readLocationFields('edit');
+    if (locationFields.location_type === 'offline' && !locationFields.location) {
+        showToast('오프라인 수업은 장소(기관명 또는 주소)를 입력해주세요.', 'error');
+        return;
+    }
 
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
     if (!className) { showToast('수업명을 입력해주세요.', 'error'); return; }
@@ -1051,6 +1095,7 @@ async function submitEditEntry() {
                 start_time: startTime,
                 end_time: endTime,
                 is_holiday: isHoliday,
+                ...locationFields,
             })
         });
         const data = await res.json();

@@ -61,6 +61,25 @@ def _resolve_class_time(data):
     return hours, start_time, end_time
 
 
+LOCATION_TYPES = ('online', 'offline')
+LOCATION_MAX_LEN = 200
+
+
+def _resolve_location(data):
+    """location_type + location → 저장 필드. 오프라인은 장소 필수. 오류 시 ValueError"""
+    location_type = data.get('location_type', 'online')
+    if location_type not in LOCATION_TYPES:
+        raise ValueError("수업 장소 구분을 확인해주세요. (online/offline)")
+    if location_type == 'online':
+        return {'location_type': 'online', 'location': ''}
+    location = _sanitize_name(str(data.get('location') or ''), max_len=None)
+    if not location:
+        raise ValueError("오프라인 수업은 장소(기관명 또는 주소)를 입력해주세요.")
+    if len(location) > LOCATION_MAX_LEN:
+        raise ValueError(f"수업 장소는 {LOCATION_MAX_LEN}자 이하로 입력해주세요.")
+    return {'location_type': 'offline', 'location': location}
+
+
 # ===== 페이지 라우트 =====
 
 @main_bp.route('/')
@@ -390,6 +409,11 @@ def add_entry(course_id):
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
+    try:
+        location_fields = _resolve_location(data)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
     entry = {
         "date": date,
         "class_name": class_name,
@@ -398,6 +422,7 @@ def add_entry(course_id):
         "start_time": start_time,
         "end_time": end_time,
         "is_holiday": is_holiday,
+        **location_fields,
     }
 
     storage = get_storage()
@@ -453,6 +478,11 @@ def update_entry(course_id, entry_id):
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
+    try:
+        location_fields = _resolve_location(data)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
     updates = {
         "date": date,
         "class_name": class_name,
@@ -461,6 +491,7 @@ def update_entry(course_id, entry_id):
         "start_time": start_time,
         "end_time": end_time,
         "is_holiday": is_holiday,
+        **location_fields,
     }
 
     storage = get_storage()

@@ -137,6 +137,16 @@
                     <p id="modal-time" class="text-sm font-medium text-gray-800"></p>
                 </div>
             </div>
+            <div id="modal-location-row" class="flex items-center space-x-3">
+                <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <div>
+                    <span class="text-xs text-gray-500">장소</span>
+                    <p id="modal-location" class="text-sm font-medium text-gray-800 break-words"></p>
+                </div>
+            </div>
             <div class="flex items-center space-x-3">
                 <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -292,6 +302,16 @@
                        placeholder="예: 강명호">
             </div>
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">장소</label>
+                <div class="flex items-center space-x-4 text-sm text-gray-700">
+                    <label class="flex items-center space-x-1"><input type="radio" name="add-location-type" value="online" checked class="accent-primary"><span>온라인</span></label>
+                    <label class="flex items-center space-x-1"><input type="radio" name="add-location-type" value="offline" class="accent-primary"><span>오프라인</span></label>
+                </div>
+                <input type="text" id="add-location" maxlength="200"
+                       class="hidden mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                       placeholder="예: 서울특별시교육청, 상세 도로명 주소">
+            </div>
+            <div>
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">수업시간</label>
@@ -359,6 +379,16 @@
                 <input type="text" id="edit-instructor" maxlength="50"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
                        placeholder="예: 강명호">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">장소</label>
+                <div class="flex items-center space-x-4 text-sm text-gray-700">
+                    <label class="flex items-center space-x-1"><input type="radio" name="edit-location-type" value="online" class="accent-primary"><span>온라인</span></label>
+                    <label class="flex items-center space-x-1"><input type="radio" name="edit-location-type" value="offline" class="accent-primary"><span>오프라인</span></label>
+                </div>
+                <input type="text" id="edit-location" maxlength="200"
+                       class="hidden mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
+                       placeholder="예: 서울특별시교육청, 상세 도로명 주소">
             </div>
             <div>
                 <div class="grid grid-cols-3 gap-3">
@@ -493,6 +523,7 @@
                 <p class="text-sm text-gray-600 leading-relaxed">
                     상단의 <strong>+ 시간표 업로드</strong> 버튼을 클릭하여 엑셀 파일(.xlsx)을 업로드합니다.
                     업로드 후 원하는 월(시트)을 선택하고, 과정명과 색상을 설정한 뒤 가져오기를 실행합니다.
+                    엑셀 수업 칸에 <strong>?</strong>를 적고 뒤에 장소를 쓰면 해당 수업의 장소로 가져옵니다 (예: AI기본 ?서울특별시교육청). <strong>?</strong>가 없으면 온라인 수업으로 등록됩니다.
                 </p>
             </div>
             <div>
@@ -504,6 +535,7 @@
                     캘린더에서 원하는 <strong>날짜를 클릭</strong>하거나 상단의 <strong>+ 수업 추가</strong> 버튼을 눌러
                     개별 수업을 추가할 수 있습니다. 과정, 수업명, 강사, 수업시간 등을 입력합니다.
                     수업시간은 <strong>4.5</strong>처럼 소수로 입력하거나, <strong>종료 시각</strong>을 직접 입력하면 분 단위로 자동 계산됩니다 (예: 13:00~17:30 = 4시간 30분).
+                    장소는 <strong>온라인</strong>(기본) 또는 <strong>오프라인</strong>을 선택합니다. 오프라인은 기관명이나 상세 도로명 주소를 자유롭게 입력합니다.
                 </p>
             </div>
             <div>
@@ -532,7 +564,7 @@
                     수업 확인, 수정 및 삭제
                 </h4>
                 <p class="text-sm text-gray-600 leading-relaxed">
-                    캘린더의 수업을 클릭하면 상세 정보(강사, 시간, 과정)를 확인할 수 있습니다.
+                    캘린더의 수업을 클릭하면 상세 정보(강사, 장소, 시간, 과정)를 확인할 수 있습니다.
                     <strong>수업 수정</strong> 버튼으로 수업명·강사·날짜·시간 등을 수정하거나,
                     <strong>수업 삭제</strong> 버튼으로 개별 수업을 삭제할 수 있습니다.
                 </p>

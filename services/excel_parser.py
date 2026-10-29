@@ -35,6 +35,10 @@ HOLIDAY_KEYWORDS = {
 LUNCH_START = 13 * 60
 LUNCH_END = 14 * 60
 
+# '?' 뒤 텍스트는 수업장소 (전각 '？' 포함). 장소가 없으면 온라인
+LOCATION_MARK_RE = re.compile(r'[?？]')
+ONLINE_LABEL = '온라인'
+
 
 def get_sheet_names(filepath):
     """엑셀 파일의 시트 목록 반환 (정보 시트 제외)"""
@@ -47,6 +51,32 @@ def get_sheet_names(filepath):
 def _to_minutes(time_str):
     h, m = map(int, time_str.split(':'))
     return h * 60 + m
+
+
+def _split_location(text):
+    if not isinstance(text, str):
+        return text, None
+    match = LOCATION_MARK_RE.search(text)
+    if not match:
+        return text.strip(), None
+    return text[:match.start()].strip(), text[match.end():].strip()
+
+
+def _find_location(ws, date_col, class_col, week_row):
+    for offset in range(0, 6):
+        for col in sorted({date_col, class_col}):
+            value = ws.cell(row=week_row + offset, column=col).value
+            if isinstance(value, str):
+                _, location = _split_location(value)
+                if location is not None:
+                    return location
+    return None
+
+
+def _location_fields(location):
+    if not location or location == ONLINE_LABEL:
+        return {'location_type': 'online', 'location': ''}
+    return {'location_type': 'offline', 'location': location}
 
 
 def normalize_hours(value):
@@ -207,7 +237,7 @@ def _extract_instructors_and_hours(ws, date_col, class_col, week_row, default_ho
                 if 0 < val <= 12 and numeric_hours is None:
                     numeric_hours = normalize_hours(val)
             elif isinstance(cell_val, str):
-                text = cell_val.strip()
+                text = _split_location(cell_val)[0]
                 if not text:
                     continue
 
@@ -274,7 +304,7 @@ def parse_timetable(filepath, selected_sheets, default_start_time='09:00', defau
                 class_cell = ws.cell(row=week_row, column=class_col).value
                 if class_cell is None or not isinstance(class_cell, str):
                     continue
-                class_name = class_cell.strip().replace('\n', ' ').replace('\t', ' ')
+                class_name = _split_location(class_cell)[0].replace('\n', ' ').replace('\t', ' ')
                 class_name = re.sub(r'\s+', ' ', class_name)
                 if not class_name:
                     continue
@@ -305,6 +335,7 @@ def parse_timetable(filepath, selected_sheets, default_start_time='09:00', defau
                     "start_time": default_start_time,
                     "end_time": end_time,
                     "is_holiday": is_holiday,
+                    **_location_fields(_find_location(ws, date_col, class_col, week_row)),
                 }
                 entries.append(entry)
                 logger.debug(f"  {entry['date']} | {class_name} | {instructor} | {hours}h")
