@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import threading
 from datetime import datetime, timedelta
 
@@ -11,6 +12,49 @@ from services.reminder_attachments import EDUCATION_TYPES
 
 
 _storage = None
+
+
+def configure_assignment_for_instructors(storage, course_id, entry_id, instructor, education_type=None):
+    """Assign uniquely name-matched instructor contacts without exposing their email addresses."""
+    if education_type is not None and education_type not in EDUCATION_TYPES:
+        raise ValueError('교육 유형을 확인해주세요.')
+
+    instructor_names = list(dict.fromkeys(
+        name.strip() for name in re.split(r'[,/]', instructor or '') if name.strip()
+    ))
+    contacts_by_name = {}
+    for contact in storage.contacts():
+        normalized = ' '.join(contact['name'].split()).casefold()
+        contacts_by_name.setdefault(normalized, []).append(contact)
+
+    recipients = []
+    matched = []
+    unmatched = []
+    ambiguous = []
+    for name in instructor_names:
+        candidates = contacts_by_name.get(' '.join(name.split()).casefold(), [])
+        if not candidates:
+            unmatched.append(name)
+        elif len(candidates) > 1:
+            ambiguous.append(name)
+        else:
+            matched.append(candidates[0]['name'])
+            recipients.append(candidates[0]['id'])
+
+    assignment = None
+    if recipients:
+        assignment = storage.save_assignment(course_id, entry_id, recipients, education_type)
+
+    if assignment is None:
+        assignment = storage.assignment(course_id, entry_id)
+    return {
+        'configured': bool(recipients),
+        'recipient_count': len(recipients),
+        'matched_instructors': matched,
+        'unmatched_instructors': unmatched,
+        'ambiguous_instructors': ambiguous,
+        'education_type': assignment['education_type'],
+    }
 
 
 def _key(prefix, *parts):

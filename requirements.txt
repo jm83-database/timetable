@@ -1,7 +1,10 @@
 Flask==3.0.0
 openpyxl==3.1.2
 python-dotenv==1.0.0
-waitress==2.1.2
+mcp>=1.26,<2
+a2wsgi>=1.10,<2
+uvicorn[standard]>=0.34,<1
+uvicorn-worker>=0.3,<1
 azure-cosmos==4.5.1
 gunicorn==21.2.0
 email-validator>=2.2,<3

@@ -30,6 +30,50 @@ def _authentication_required():
     return response
 
 
+def validate_mcp_agent_token(token, config, extensions):
+    """Validate an app-only access token with the MCP API role."""
+    tenant = config.get('EMPLOYEE_TENANT_ID', '').lower()
+    audience = config.get('MCP_API_AUDIENCE', '')
+    required_role = config.get('MCP_REQUIRED_ROLE', '')
+    if not tenant or not audience or not required_role:
+        raise RuntimeError('MCP Entra authentication is not configured')
+    if len(token) > 32768:
+        return False
+
+    try:
+        uuid.UUID(tenant)
+    except ValueError as error:
+        raise RuntimeError('MCP Entra tenant is invalid') from error
+
+    issuer = f'https://login.microsoftonline.com/{tenant}/v2.0'
+    try:
+        jwks = extensions.setdefault(
+            'timetable_jwks',
+            PyJWKClient(f'https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys', timeout=5),
+        )
+        key = jwks.get_signing_key_from_jwt(token).key
+        claims = jwt.decode(
+            token,
+            key,
+            algorithms=['RS256'],
+            audience=audience,
+            issuer=issuer,
+            options={'require': ['iss', 'aud', 'sub', 'iat', 'nbf', 'exp', 'tid', 'oid', 'roles']},
+        )
+    except PyJWKClientConnectionError:
+        raise
+    except (jwt.PyJWTError, ValueError, TypeError, KeyError):
+        return False
+
+    roles = claims.get('roles')
+    return (
+        isinstance(claims.get('tid'), str)
+        and claims['tid'].lower() == tenant
+        and isinstance(roles, list)
+        and required_role in roles
+    )
+
+
 def require_company_user():
     config = current_app.config
     if config['AUTH_MODE'] == 'local':

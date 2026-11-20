@@ -39,15 +39,23 @@ Vertex42 엑셀 캘린더 템플릿을 업로드하면 자동으로 수업 일�
 - **웹에서 직접 수정** - 항목 추가/수정/삭제, 엑셀 원문(raw_text)과 출처 시트를 상세 모달에서 확인
 - **도움말 가이드** - 탭 우측 **?** 버튼으로 구성원 누구나 볼 수 있는 사용법·단축키 안내
 
+### MCP (사내 에이전트 연동)
+
+- `POST /mcp`에서 표준 Streamable HTTP MCP 프로토콜을 제공합니다.
+- 과정 목록·수업 검색·직원근무표 조회와 과정/수업/근무 항목의 추가·수정·삭제 도구를 제공합니다.
+- 조회 도구는 필요한 필드만 반환하고 결과를 최대 100건으로 제한합니다. 직원근무표 조회와 수업 검색의 날짜 범위는 최대 366일입니다.
+- 운영 환경은 Entra app-only access token과 `Timetable.ReadWrite` app role을 요구합니다. MCP 인증 설정이 없으면 운영 요청은 거부됩니다.
+- Azure OpenAI에 모델만 배포한 상태로는 MCP를 호출할 수 없습니다. Microsoft Foundry Agent Service 또는 MCP client를 실행하는 사내 Azure 앱이 별도로 필요합니다.
+
 ## 기술 스택
 
 | 구분 | 기술 |
 |------|------|
-| Backend | Flask 3.0, Python 3.10+ |
+| Backend | Flask 3.0, MCP Streamable HTTP, Python 3.11+ |
 | Frontend | FullCalendar v6, Tailwind CSS (CDN) |
 | 엑셀 파싱 | openpyxl |
 | 저장소 | 로컬 JSON (기본) / Azure Cosmos DB (선택) |
-| 프로덕션 서버 | Waitress (로컬) / Gunicorn (Azure) |
+| 프로덕션 서버 | Uvicorn (로컬) / Gunicorn + UvicornWorker (Azure) |
 
 ## 설치 및 실행
 
@@ -292,6 +300,45 @@ python -m pytest tests/
 | `DELETE` | `/api/roster/entries/:id` | 항목 삭제 |
 
 `category`는 `office` · `laptop` · `event` · `leave` · `memo` 중 하나, `people`은 배열 또는 `"홍길동, 전우치"` 문자열.
+
+### MCP
+
+MCP endpoint: `https://<앱 호스트>/mcp`
+
+| Tool | 설명 |
+|------|------|
+| `list_courses` | 일정 없이 과정 ID와 요약만 반환 |
+| `search_classes` | 과정, 검색어, 기간으로 수업을 찾고 최대 100건 반환 |
+| `list_roster_entries` | 기간·구분·직원으로 근무 항목 조회 |
+| `create_course`, `create_class`, `configure_class_reminders`, `update_class`, `delete_class` | 과정·수업 생성과 강사별 알림 수신자 자동 매칭 |
+| `create_roster_entry`, `update_roster_entry`, `delete_roster_entry` | 직원근무표 관리 |
+
+`create_class`는 `location_type`을 명시적으로 요구합니다. 오프라인이면 실제 장소를 `location`에 넣어야 합니다. 일정 생성 뒤 `configure_class_reminders`를 호출하면 강사 이름을 등록된 알림 수신자와 정확히 대조해 일치하는 수신자만 해당 수업에 설정합니다. 동명이인 연락처는 임의 선택하지 않고 `ambiguous_instructors`로 보고하며, 미등록 강사도 따로 알려줍니다. 이메일 주소는 MCP 응답에 포함하지 않습니다.
+
+PM 에이전트의 지침에는 다음 순서를 포함하세요.
+
+```text
+새 수업을 등록할 때:
+1. 수업 정보에서 대면 장소/주소가 있으면 location_type=offline과 location을 지정한다.
+   온라인 링크나 원격 수업임이 확인되면 location_type=online과 online_class_url을 지정한다.
+   구분이나 필수 정보가 불명확하면 추측하지 말고 질문한다.
+2. create_class를 호출해 과정을 등록하고, 반환된 course_id와 entry_id를 기억한다.
+3. 바로 configure_class_reminders를 호출한다. 단기교육임이 확인된 경우에만
+   education_type=short_term을 지정하고, 그 외에는 regular를 사용한다.
+4. 결과의 unmatched_instructors 또는 ambiguous_instructors가 있으면 사용자에게 알린다.
+   연락처를 추측하거나 새 수신자를 임의 등록하지 않는다.
+```
+
+수업 생성과 알림 설정은 두 번의 MCP 호출입니다. 알림 설정만 재시도해도 수업이 중복 생성되지 않습니다.
+
+#### 운영 인증 설정
+
+1. Entra ID에서 MCP API용 앱 등록의 Application ID URI를 지정하고, `Timetable.ReadWrite` 앱 역할을 `allowedMemberTypes: ["Application"]`으로 생성합니다. 사용자에게는 이 역할을 할당하지 않습니다.
+2. 해당 역할을 MCP를 호출할 에이전트 호스트의 Managed Identity에 할당합니다.
+3. [web-auth.bicep](./infra/web-auth.bicep) 배포 시 `mcpApiAudience`에 Application ID URI를 전달합니다. 이 값은 App Service Easy Auth의 허용 audience와 `MCP_API_AUDIENCE` 앱 설정에 함께 반영됩니다. `mcpRequiredRole`은 기본값 `Timetable.ReadWrite`를 사용하거나 앱 역할 이름에 맞춥니다.
+4. 에이전트 실행 환경은 이 audience용 Entra access token을 `Authorization: Bearer <token>`으로 MCP endpoint에 전달합니다. App Service Easy Auth가 토큰을 전달하는 경우 `X-MS-TOKEN-AAD-ACCESS-TOKEN`도 검증합니다.
+
+에이전트 호스트와 Managed Identity가 아직 없으면 MCP endpoint는 준비되더라도 운영 인증이 활성화되지 않습니다. `TIMETABLE_AUTH_MODE=local`은 로컬 개발용이며 Azure에서는 사용할 수 없습니다.
 
 ### 응답 예시
 

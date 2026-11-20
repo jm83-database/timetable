@@ -53,8 +53,15 @@ def create_app():
     return app
 
 
+def create_asgi_app(flask_app=None):
+    """Serve the existing Flask application and MCP over one HTTP endpoint."""
+    from services.mcp_server import create_mcp_asgi_app
+    return create_mcp_asgi_app(flask_app or create_app())
+
+
 # Azure WebApp 호환을 위한 전역 인스턴스
-app = create_app()
+flask_app = create_app()
+app = create_asgi_app(flask_app)
 
 
 def main():
@@ -67,15 +74,9 @@ def main():
     print(f"  저장소: {storage}")
     print("=" * 50)
 
-    if Config.DEBUG:
-        app.run(debug=True, host=Config.HOST, port=Config.PORT)
-    else:
-        try:
-            from waitress import serve
-            print(f"Waitress 서버 시작 (포트: {Config.PORT})")
-            serve(app, host=Config.HOST, port=Config.PORT)
-        except Exception as e:
-            print(f"서버 시작 오류: {e}")
+    import uvicorn
+    print(f"ASGI 서버 시작 (포트: {Config.PORT})")
+    uvicorn.run(app, host=Config.HOST, port=Config.PORT, reload=Config.DEBUG)
 
 
 if __name__ == '__main__':

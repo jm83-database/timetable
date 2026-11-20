@@ -99,6 +99,14 @@ jobs:
 
       - name: 'Deploy to Azure Web App'
         if: ${{ steps.auth-readiness.outputs.ready == 'true' }}
+        run: |
+          az webapp config set \
+            --resource-group Microsoft-Academy \
+            --name elixirrtimetable \
+            --startup-file 'gunicorn --bind=0.0.0.0:8000 --workers=2 --worker-class=uvicorn_worker.UvicornWorker --timeout=600 app:app'
+
+      - name: 'Deploy application package'
+        if: ${{ steps.auth-readiness.outputs.ready == 'true' }}
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:

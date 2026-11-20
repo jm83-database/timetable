@@ -136,20 +136,7 @@ def get_courses():
     """전체 과정 목록 반환 (entries 제외, 메타데이터만)"""
     from services.cosmos_service import get_storage
     storage = get_storage()
-    courses = storage.get_all_courses()
-    # entries 제거 → 경량 응답
-    course_list = []
-    for c in courses:
-        course_list.append({
-            "id": c.get("id"),
-            "name": c.get("name"),
-            "color": c.get("color"),
-            "file_name": c.get("file_name"),
-            "uploaded_at": c.get("uploaded_at"),
-            "default_start_time": c.get("default_start_time"),
-            "entry_count": c.get("entry_count", len(c.get("entries", []))),
-        })
-    return jsonify({"success": True, "courses": course_list})
+    return jsonify({"success": True, "courses": storage.get_course_summaries()})
 
 
 @api_bp.route('/events', methods=['GET'])

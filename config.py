@@ -16,6 +16,8 @@ class Config:
     LOGIN_CLIENT_ID = os.environ.get('LOGIN_CLIENT_ID', '')
     LOGIN_DOMAIN = os.environ.get('LOGIN_DOMAIN', 'elixirr.co.kr')
     APP_ORIGIN = os.environ.get('APP_ORIGIN', '')
+    MCP_API_AUDIENCE = os.environ.get('MCP_API_AUDIENCE', '')
+    MCP_REQUIRED_ROLE = os.environ.get('MCP_REQUIRED_ROLE', 'Timetable.ReadWrite')
 
     # 파일 업로드
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'uploads')

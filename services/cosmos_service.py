@@ -70,6 +70,17 @@ class LocalJsonStorage:
         data = self._ensure_entry_ids(data)
         return data.get("courses", [])
 
+    def get_course_summaries(self):
+        """과정 메타데이터만 반환"""
+        courses = self._load_data().get('courses', [])
+        return [
+            {
+                key: course.get(key)
+                for key in ('id', 'name', 'color', 'file_name', 'uploaded_at', 'default_start_time')
+            } | {'entry_count': course.get('entry_count', len(course.get('entries', [])))}
+            for course in courses
+        ]
+
     def save_course(self, course, entries):
         """과정과 수업 일정 저장"""
         data = self._load_data()
@@ -202,6 +213,34 @@ class CosmosStorage:
             course['entries'] = entries
 
         return courses
+
+    def get_course_summaries(self):
+        """과정 메타데이터만 조회하고, 구형 문서만 일정 건수를 추가 조회"""
+        query = (
+            "SELECT c.id, c.name, c.color, c.file_name, c.uploaded_at, "
+            "c.default_start_time, c.entry_count FROM c "
+            "WHERE c.type = 'course' ORDER BY c.uploaded_at DESC"
+        )
+        courses = list(self.container.query_items(query=query, enable_cross_partition_query=True))
+        missing_counts = [course for course in courses if course.get('entry_count') is None]
+        if missing_counts:
+            count_query = (
+                "SELECT c.course_id, COUNT(1) AS entry_count FROM c "
+                "WHERE c.type = 'entry' GROUP BY c.course_id"
+            )
+            counts = {
+                item['course_id']: item['entry_count']
+                for item in self.container.query_items(
+                    query=count_query, enable_cross_partition_query=True
+                )
+            }
+            for course in missing_counts:
+                course['entry_count'] = counts.get(course['id'], 0)
+        fields = ('id', 'name', 'color', 'file_name', 'uploaded_at', 'default_start_time')
+        return [
+            {key: course.get(key) for key in fields} | {'entry_count': course.get('entry_count', 0)}
+            for course in courses
+        ]
 
     def save_course(self, course, entries):
         """과정과 수업 일정 저장"""
