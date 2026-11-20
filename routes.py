@@ -3,7 +3,8 @@ Timetable Dashboard - 라우트 정의
 """
 import re
 import logging
-from flask import Blueprint, render_template, jsonify, request
+from urllib.parse import urlsplit
+from flask import Blueprint, render_template, jsonify, request, send_file
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ def _resolve_class_time(data):
 
 LOCATION_TYPES = ('online', 'offline')
 LOCATION_MAX_LEN = 200
+LINK_MAX_LEN = 2048
 
 
 def _resolve_location(data):
@@ -78,6 +80,36 @@ def _resolve_location(data):
     if len(location) > LOCATION_MAX_LEN:
         raise ValueError(f"수업 장소는 {LOCATION_MAX_LEN}자 이하로 입력해주세요.")
     return {'location_type': 'offline', 'location': location}
+
+
+def _resolve_optional_url(value, label):
+    if value is None:
+        return ''
+    if not isinstance(value, str):
+        raise ValueError(f"{label}은 http 또는 https URL을 입력해주세요.")
+    url = value.strip()
+    if not url:
+        return ''
+    if len(url) > LINK_MAX_LEN or any(char.isspace() for char in url):
+        raise ValueError(f"{label}은 유효한 http 또는 https URL을 입력해주세요.")
+    try:
+        parts = urlsplit(url)
+        if parts.scheme.lower() not in ('http', 'https') or not parts.hostname:
+            raise ValueError
+        parts.port
+    except ValueError as error:
+        raise ValueError(f"{label}은 유효한 http 또는 https URL을 입력해주세요.") from error
+    return url
+
+
+def _resolve_class_links(data, location_type):
+    return {
+        'course_material_url': _resolve_optional_url(data.get('course_material_url', ''), '강의자료 링크'),
+        'online_class_url': _resolve_optional_url(
+            data.get('online_class_url', '') if location_type == 'online' else '',
+            '온라인 수업 링크',
+        ),
+    }
 
 
 # ===== 페이지 라우트 =====
@@ -146,7 +178,7 @@ def get_stats():
 @api_bp.route('/sheets', methods=['POST'])
 def get_sheets():
     """엑셀 파일 업로드 후 시트 목록 반환"""
-    from services.excel_parser import get_sheet_names
+    from services.excel_parser import detect_timetable_format, get_sheet_names
     import os
     from config import Config
 
@@ -183,11 +215,17 @@ def get_sheets():
         return jsonify({"success": False, "error": "유효한 엑셀 파일이 아닙니다."}), 400
 
     try:
-        sheets = get_sheet_names(filepath)
-        if not sheets:
+        timetable_format = detect_timetable_format(filepath)
+        sheets = [] if timetable_format == 'multi_course' else get_sheet_names(filepath)
+        if timetable_format != 'multi_course' and not sheets:
             os.remove(filepath)
             return jsonify({"success": False, "error": "유효한 시트를 찾을 수 없습니다."}), 400
-        return jsonify({"success": True, "sheets": sheets, "filepath": filepath})
+        return jsonify({
+            "success": True,
+            "sheets": sheets,
+            "filepath": filepath,
+            "format": timetable_format,
+        })
     except Exception as e:
         logger.error(f"엑셀 파일 읽기 실패: {e}", exc_info=True)
         try:
@@ -197,10 +235,23 @@ def get_sheets():
         return jsonify({"success": False, "error": "엑셀 파일을 읽을 수 없습니다. 파일 형식을 확인해주세요."}), 400
 
 
+@api_bp.route('/templates/multi-course.xlsx', methods=['GET'])
+def download_multi_course_template():
+    """한 표에 여러 과정의 수업을 입력하는 템플릿 다운로드"""
+    from services.excel_parser import create_multi_course_template
+
+    return send_file(
+        create_multi_course_template(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='multi_course_timetable_template.xlsx',
+    )
+
+
 @api_bp.route('/upload', methods=['POST'])
 def upload_course():
     """엑셀 파싱 후 과정 저장"""
-    from services.excel_parser import parse_timetable
+    from services.excel_parser import detect_timetable_format, parse_multi_course_timetable, parse_timetable
     from services.cosmos_service import get_storage
     from config import Config
     import os
@@ -227,6 +278,85 @@ def upload_course():
     if not real_filepath.startswith(real_upload_folder + os.sep):
         logger.warning(f"Path Traversal 시도 감지: {filepath}")
         return jsonify({"success": False, "error": "잘못된 파일 경로입니다."}), 400
+
+    try:
+        timetable_format = detect_timetable_format(filepath)
+    except Exception as error:
+        logger.exception('시간표 형식 감지 실패: %s', filepath)
+        return jsonify({"success": False, "error": "엑셀 파일을 읽을 수 없습니다."}), 400
+
+    if timetable_format == 'multi_course':
+        try:
+            parsed_entries = parse_multi_course_timetable(filepath)
+            entries_by_course = {}
+            errors = []
+            for entry in parsed_entries:
+                row_number = entry.pop('_row_number')
+                try:
+                    location_fields = _resolve_location(entry)
+                    link_fields = _resolve_class_links(entry, location_fields['location_type'])
+                except ValueError as error:
+                    errors.append(f'{row_number}행: {error}')
+                    continue
+                entry['instructor'] = _normalize_instructor(entry['instructor'])
+                entry.update(location_fields)
+                entry.update(link_fields)
+                course_name_for_entry = entry.pop('course_name')
+                entries_by_course.setdefault(course_name_for_entry, []).append(entry)
+
+            if errors:
+                shown_errors = errors[:20]
+                remaining = len(errors) - len(shown_errors)
+                suffix = f'\n그 외 {remaining}개 오류가 더 있습니다.' if remaining else ''
+                return jsonify({
+                    "success": False,
+                    "error": '표 양식 오류:\n' + '\n'.join(shown_errors) + suffix,
+                }), 400
+
+            if not entries_by_course:
+                return jsonify({"success": False, "error": "가져올 수업 일정이 없습니다."}), 400
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_name = os.path.basename(filepath).split('_', 1)[-1] if '_' in os.path.basename(filepath) else os.path.basename(filepath)
+            storage = get_storage()
+            course_ids = []
+            total_entries = 0
+            for index, (name, course_entries) in enumerate(entries_by_course.items()):
+                course_id = f"course_{timestamp}_{str(uuid.uuid4())[:8]}"
+                course = {
+                    "id": course_id,
+                    "type": "course",
+                    "name": name,
+                    "color": Config.COURSE_COLORS[index % len(Config.COURSE_COLORS)],
+                    "file_name": file_name,
+                    "uploaded_at": datetime.now().isoformat(),
+                    "default_start_time": course_entries[0]['start_time'],
+                    "entry_count": len(course_entries),
+                }
+                storage.save_course(course, course_entries)
+                course_ids.append(course_id)
+                total_entries += len(course_entries)
+
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+
+            message = f"{len(course_ids)}개 과정, {total_entries}개 수업 일정이 등록되었습니다."
+            logger.info("표 시간표 등록 완료: %s", message)
+            return jsonify({
+                "success": True,
+                "message": message,
+                "course_ids": course_ids,
+                "course_count": len(course_ids),
+                "entry_count": total_entries,
+            })
+        except ValueError as error:
+            return jsonify({"success": False, "error": str(error)}), 400
+        except Exception:
+            logger.exception('표 시간표 저장 실패: %s', filepath)
+            return jsonify({"success": False, "error": "표 시간표 저장 중 오류가 발생했습니다."}), 500
+
     if not selected_sheets:
         return jsonify({"success": False, "error": "시트를 선택해주세요."}), 400
     if not course_name:
@@ -414,6 +544,11 @@ def add_entry(course_id):
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
+    try:
+        class_links = _resolve_class_links(data, location_fields['location_type'])
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
     entry = {
         "date": date,
         "class_name": class_name,
@@ -423,6 +558,7 @@ def add_entry(course_id):
         "end_time": end_time,
         "is_holiday": is_holiday,
         **location_fields,
+        **class_links,
     }
 
     storage = get_storage()
@@ -483,6 +619,11 @@ def update_entry(course_id, entry_id):
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
+    try:
+        class_links = _resolve_class_links(data, location_fields['location_type'])
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
     updates = {
         "date": date,
         "class_name": class_name,
@@ -492,6 +633,7 @@ def update_entry(course_id, entry_id):
         "end_time": end_time,
         "is_holiday": is_holiday,
         **location_fields,
+        **class_links,
     }
 
     storage = get_storage()

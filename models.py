@@ -18,6 +18,8 @@ class ClassEntry:
     location_type: str = "online"   # online | offline
     location: str = ""              # 오프라인 기관명 또는 상세 주소
     id: str = ""               # 개별 엔트리 식별자
+    course_material_url: str = ""
+    online_class_url: str = ""
 
     def to_dict(self):
         d = {
@@ -30,6 +32,8 @@ class ClassEntry:
             "is_holiday": self.is_holiday,
             "location_type": self.location_type,
             "location": self.location,
+            "course_material_url": self.course_material_url,
+            "online_class_url": self.online_class_url,
         }
         if self.id:
             d["id"] = self.id

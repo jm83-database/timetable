@@ -6,6 +6,10 @@
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-800">시간표 업로드</h1>
         <p class="text-sm text-gray-500 mt-1">엑셀 파일에서 수업 일정을 가져옵니다.</p>
+        <p class="text-sm text-gray-500 mt-2">
+            여러 과정의 수업을 한 번에 올리려면
+            <a href="{{ url_for('api.download_multi_course_template') }}" class="text-primary underline font-medium">표 양식 템플릿을 다운로드</a>하세요.
+        </p>
     </div>
 
     <!-- Step 1: 파일 업로드 -->
@@ -44,6 +48,11 @@
             </div>
             <p id="progress-text" class="text-xs text-gray-500 mt-1">업로드 중...</p>
         </div>
+    </div>
+
+    <div id="table-import-info" class="hidden bg-blue-50 rounded-lg border border-blue-200 p-4 mb-4">
+        <h2 class="text-sm font-semibold text-blue-900">다중 과정 표 양식</h2>
+        <p class="text-sm text-blue-800 mt-1">각 행을 수업 하나로 가져오며, 같은 과정명은 하나의 과정으로 묶이고 색상은 자동 지정됩니다.</p>
     </div>
 
     <!-- Step 2: 시트 선택 -->

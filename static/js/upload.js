@@ -9,6 +9,7 @@ const COURSE_COLORS = [
 ];
 
 let uploadedFilepath = null;
+let uploadedFormat = null;
 let selectedSheets = [];
 let selectedColor = COURSE_COLORS[0];
 
@@ -100,6 +101,7 @@ function initButtons() {
     });
 
     document.getElementById('import-btn').addEventListener('click', importTimetable);
+    document.getElementById('course-name').addEventListener('input', updateImportButton);
 }
 
 async function handleFile(file) {
@@ -110,6 +112,13 @@ async function handleFile(file) {
     }
 
     // 파일 정보 표시
+    uploadedFilepath = null;
+    uploadedFormat = null;
+    selectedSheets = [];
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step3').classList.add('hidden');
+    document.getElementById('table-import-info').classList.add('hidden');
+    document.getElementById('import-section').classList.add('hidden');
     document.getElementById('file-name').textContent = file.name;
     document.getElementById('file-info').classList.remove('hidden');
 
@@ -135,7 +144,12 @@ async function handleFile(file) {
 
         if (data.success) {
             uploadedFilepath = data.filepath;
-            showSheetSelection(data.sheets);
+            uploadedFormat = data.format || 'vertex42';
+            if (uploadedFormat === 'multi_course') {
+                showMultiCourseReady();
+            } else {
+                showSheetSelection(data.sheets);
+            }
             setTimeout(() => progress.classList.add('hidden'), 500);
         } else {
             showResult(data.error, false);
@@ -150,6 +164,7 @@ async function handleFile(file) {
 function showSheetSelection(sheets) {
     const list = document.getElementById('sheet-list');
     list.innerHTML = '';
+    document.getElementById('table-import-info').classList.add('hidden');
 
     sheets.forEach(name => {
         const label = document.createElement('label');
@@ -183,23 +198,38 @@ function updateSelectedSheets() {
         selectedSheets.push(cb.value);
     });
 
-    const importBtn = document.getElementById('import-btn');
-    const courseName = document.getElementById('course-name').value.trim();
-    importBtn.disabled = selectedSheets.length === 0 || !courseName;
+    updateImportButton();
+}
 
-    // 과정명 입력 리스너 추가
-    document.getElementById('course-name').addEventListener('input', () => {
-        const name = document.getElementById('course-name').value.trim();
-        importBtn.disabled = selectedSheets.length === 0 || !name;
-    });
+function showMultiCourseReady() {
+    selectedSheets = [];
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step3').classList.add('hidden');
+    document.getElementById('table-import-info').classList.remove('hidden');
+    document.getElementById('import-section').classList.remove('hidden');
+    updateImportButton();
+}
+
+function updateImportButton() {
+    const importBtn = document.getElementById('import-btn');
+    const isMultiCourse = uploadedFormat === 'multi_course';
+    const courseName = document.getElementById('course-name').value.trim();
+    importBtn.disabled = !uploadedFilepath || (isMultiCourse
+        ? false
+        : selectedSheets.length === 0 || !courseName);
 }
 
 async function importTimetable() {
     const btn = document.getElementById('import-btn');
     const courseName = document.getElementById('course-name').value.trim();
     const startTime = document.getElementById('start-time').value;
+    const isMultiCourse = uploadedFormat === 'multi_course';
 
-    if (!courseName) {
+    if (!uploadedFilepath) {
+        showResult('먼저 엑셀 파일을 업로드해주세요.', false);
+        return;
+    }
+    if (!isMultiCourse && !courseName) {
         showResult('과정명을 입력해주세요.', false);
         return;
     }
@@ -213,7 +243,8 @@ async function importTimetable() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 filepath: uploadedFilepath,
-                sheets: selectedSheets,
+                sheets: isMultiCourse ? [] : selectedSheets,
+                format: uploadedFormat,
                 course_name: courseName,
                 color: selectedColor,
                 start_time: startTime,
@@ -252,8 +283,11 @@ function resetUpload() {
     document.getElementById('upload-progress').classList.add('hidden');
     document.getElementById('step2').classList.add('hidden');
     document.getElementById('step3').classList.add('hidden');
+    document.getElementById('table-import-info').classList.add('hidden');
     document.getElementById('import-section').classList.add('hidden');
     document.getElementById('result-message').classList.add('hidden');
     uploadedFilepath = null;
+    uploadedFormat = null;
     selectedSheets = [];
+    updateImportButton();
 }

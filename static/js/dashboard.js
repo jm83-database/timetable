@@ -186,6 +186,10 @@ function setLocationType(prefix, type) {
     const input = document.getElementById(`${prefix}-location`);
     input.classList.toggle('hidden', type !== 'offline');
     if (type !== 'offline') input.value = '';
+    const onlineLinkRow = document.getElementById(`${prefix}-online-class-url-row`);
+    const onlineLinkInput = document.getElementById(`${prefix}-online-class-url`);
+    onlineLinkRow.classList.toggle('hidden', type !== 'online');
+    if (type !== 'online') onlineLinkInput.value = '';
 }
 
 function setLocationFields(prefix, type, text) {
@@ -199,6 +203,44 @@ function readLocationFields(prefix) {
     const type = document.querySelector(`input[name="${prefix}-location-type"]:checked`).value;
     const location = type === 'offline' ? document.getElementById(`${prefix}-location`).value.trim() : '';
     return { location_type: type, location };
+}
+
+function readClassLinkFields(prefix) {
+    const readUrl = (id, label) => {
+        const value = document.getElementById(id).value.trim();
+        if (!value) return '';
+        try {
+            const parsed = new URL(value);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return value;
+        } catch (error) {
+            // Report the same validation message for malformed and unsupported URLs.
+        }
+        showToast(`${label}은 http 또는 https URL을 입력해주세요.`, 'error');
+        return null;
+    };
+    const courseMaterialUrl = readUrl(`${prefix}-course-material-url`, '강의자료 링크');
+    if (courseMaterialUrl === null) return null;
+    const onlineClassUrl = readUrl(`${prefix}-online-class-url`, '온라인 수업 링크');
+    if (onlineClassUrl === null) return null;
+    return { course_material_url: courseMaterialUrl, online_class_url: onlineClassUrl };
+}
+
+function setModalLink(rowId, linkId, value) {
+    const row = document.getElementById(rowId);
+    const link = document.getElementById(linkId);
+    link.removeAttribute('href');
+    link.textContent = '';
+    row.classList.add('hidden');
+    if (!value) return;
+    try {
+        const url = new URL(value);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+        link.href = url.href;
+        link.textContent = value;
+        row.classList.remove('hidden');
+    } catch (error) {
+        // Do not render invalid or legacy unsafe values as links.
+    }
 }
 
 function markerYmd(d) {
@@ -709,6 +751,10 @@ function showEventModal(event) {
         reminderBtn.classList.toggle('hidden', !props.entry_id || props.is_holiday);
     }
 
+    setModalLink('modal-course-material-row', 'modal-course-material-link', props.course_material_url);
+    setModalLink('modal-online-class-row', 'modal-online-class-link',
+        props.location_type === 'online' ? props.online_class_url : '');
+
     // 공휴일인 경우
     if (props.is_holiday) {
         document.getElementById('modal-header').style.backgroundColor = '#ef4444';
@@ -823,6 +869,8 @@ function openAddModal(dateStr) {
     document.getElementById('add-start-time').value = '09:00';
     document.getElementById('add-end-time').value = calcEndTime('09:00', 8);
     document.getElementById('add-is-holiday').checked = false;
+    document.getElementById('add-course-material-url').value = '';
+    document.getElementById('add-online-class-url').value = '';
     setLocationFields('add', 'online');
 
     modal.classList.remove('hidden');
@@ -895,6 +943,8 @@ async function submitAddEntry() {
     const endTime = document.getElementById('add-end-time').value || calcEndTime(startTime, hours);
     const isHoliday = document.getElementById('add-is-holiday').checked;
     const locationFields = readLocationFields('add');
+    const classLinks = readClassLinkFields('add');
+    if (!classLinks) return;
     if (locationFields.location_type === 'offline' && !locationFields.location) {
         showToast('오프라인 수업은 장소(기관명 또는 주소)를 입력해주세요.', 'error');
         return;
@@ -949,6 +999,7 @@ async function submitAddEntry() {
                 end_time: endTime,
                 is_holiday: isHoliday,
                 ...locationFields,
+                ...classLinks,
             })
         });
         const data = await res.json();
@@ -1047,6 +1098,9 @@ function openEditModal() {
     document.getElementById('edit-end-time').value = endTime;
     document.getElementById('edit-is-holiday').checked = props.is_holiday || false;
     setLocationFields('edit', props.location_type || 'online', props.location);
+    document.getElementById('edit-course-material-url').value = props.course_material_url || '';
+    document.getElementById('edit-online-class-url').value =
+        props.location_type === 'online' ? (props.online_class_url || '') : '';
 
     closeModal();
     document.getElementById('edit-event-modal').classList.remove('hidden');
@@ -1074,6 +1128,8 @@ async function submitEditEntry() {
     const endTime = document.getElementById('edit-end-time').value || calcEndTime(startTime, hours);
     const isHoliday = document.getElementById('edit-is-holiday').checked;
     const locationFields = readLocationFields('edit');
+    const classLinks = readClassLinkFields('edit');
+    if (!classLinks) return;
     if (locationFields.location_type === 'offline' && !locationFields.location) {
         showToast('오프라인 수업은 장소(기관명 또는 주소)를 입력해주세요.', 'error');
         return;
@@ -1096,6 +1152,7 @@ async function submitEditEntry() {
                 end_time: endTime,
                 is_holiday: isHoliday,
                 ...locationFields,
+                ...classLinks,
             })
         });
         const data = await res.json();

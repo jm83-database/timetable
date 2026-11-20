@@ -156,6 +156,8 @@ def format_events(courses, course_id_filter=None):
                         "hours": entry.get('hours', 0),
                         "location_type": entry.get('location_type', 'online'),
                         "location": entry.get('location', ''),
+                        "course_material_url": entry.get('course_material_url', ''),
+                        "online_class_url": entry.get('online_class_url', ''),
                         "is_holiday": False,
                     }
                 }

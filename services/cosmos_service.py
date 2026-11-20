@@ -154,7 +154,8 @@ class LocalJsonStorage:
                     if entry.get('id') == entry_id:
                         for key in ['date', 'class_name', 'instructor', 'hours',
                                     'start_time', 'end_time', 'is_holiday',
-                                    'location_type', 'location']:
+                                    'location_type', 'location',
+                                    'course_material_url', 'online_class_url']:
                             if key in updates:
                                 entry[key] = updates[key]
                         self._save_data(data)
@@ -348,7 +349,8 @@ class CosmosStorage:
             entry_doc = entry_docs[0]
             for key in ['date', 'class_name', 'instructor', 'hours',
                         'start_time', 'end_time', 'is_holiday',
-                        'location_type', 'location']:
+                        'location_type', 'location',
+                        'course_material_url', 'online_class_url']:
                 if key in updates:
                     entry_doc[key] = updates[key]
 

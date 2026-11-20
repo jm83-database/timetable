@@ -22,17 +22,23 @@ def _location_label(entry):
 
 def message_for(course, entry, offset):
     subject = f"[수업 준비 안내 D-{offset}] {course.get('name', '')} - {entry.get('class_name', '')}"
-    body = '\n'.join([
+    body_lines = [
         '안녕하세요. 수업 준비를 위한 안내입니다.', '',
         f"과정: {course.get('name', '')}",
         f"수업: {entry.get('class_name', '')}",
         f"날짜: {entry.get('date', '')}",
         f"시간: {entry.get('start_time', '')} ~ {entry.get('end_time', '')}",
         f"장소: {_location_label(entry)}",
+    ]
+    if entry.get('course_material_url'):
+        body_lines.append(f"강의자료 링크: {entry['course_material_url']}")
+    if entry.get('location_type', 'online') == 'online' and entry.get('online_class_url'):
+        body_lines.append(f"온라인 수업 링크: {entry['online_class_url']}")
+    body_lines.extend([
         f"강사: {entry.get('instructor') or '미정'}", '',
         '수업 준비를 부탁드립니다.',
     ])
-    return subject, body
+    return subject, '\n'.join(body_lines)
 
 
 def send_graph_mail(sender, token, address, subject, body, attachments=None):
